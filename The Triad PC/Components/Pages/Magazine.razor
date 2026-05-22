@@ -1,0 +1,72 @@
+@page "/magazine"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>Magazine</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+            <div>
+                <div class="nc-kicker mb-2">Editoriale</div>
+                <h1 class="display-6 fw-semibold mb-1">The Triad Journal</h1>
+                <div class="nc-muted">Interviste, recensioni e guide notturne.</div>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="nc-chip nc-chip-strong">Tutti</span>
+                <span class="nc-chip">Interviste</span>
+                <span class="nc-chip">Guide</span>
+            </div>
+        </div>
+
+        @if (FeaturedArticle != null)
+        {
+            <!-- Featured Article -->
+            <div class="nc-card mb-5 overflow-hidden">
+                <div class="row g-0">
+                    <div class="col-lg-7">
+                        <img src="@FeaturedArticle.ImageUrl" alt="@FeaturedArticle.Title" class="w-100 h-100 object-fit-cover" style="min-height: 20rem;" loading="lazy" />
+                    </div>
+                    <div class="col-lg-5 p-4 p-md-5 d-flex flex-column justify-content-center">
+                        <span class="nc-chip nc-chip-strong mb-3 align-self-start">In Evidenza</span>
+                        <h2 class="display-6 fw-semibold mb-3 nc-article-title">@FeaturedArticle.Title</h2>
+                        <p class="nc-muted mb-4 fs-5" style="line-height: 1.6;">@FeaturedArticle.Excerpt</p>
+                        <a class="btn btn-outline-light align-self-start" style="border-color: rgba(255,255,255,0.18);" href="magazine/@FeaturedArticle.Slug">Leggi Articolo</a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Article Grid -->
+        <div class="row g-4">
+            @foreach (var art in OtherArticles)
+            {
+                <div class="col-12 col-md-6">
+                    <a href="magazine/@art.Slug" class="text-decoration-none d-block h-100">
+                        <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
+                            <div class="nc-img-wrap nc-img-wrap-tall">
+                                <img class="nc-img" src="@art.ImageUrl" alt="@art.Title" loading="lazy" />
+                                <div class="nc-img-gradient"></div>
+                                <div class="nc-img-badges">
+                                    <span class="nc-chip nc-chip-strong">@art.Category</span>
+                                </div>
+                            </div>
+                            <div class="p-3 p-md-4 flex-grow-1 d-flex flex-column">
+                                <h3 class="fw-semibold fs-4 nc-article-title mb-2" style="color: var(--nc-text);">@art.Title</h3>
+                                <p class="nc-muted flex-grow-1 mb-4">@art.Excerpt</p>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    <span class="nc-muted fs-6">@art.Date • @art.ReadTime min read</span>
+                                    <span class="nc-chip" style="color: var(--nc-accent); border-color: rgba(255,77,0,0.3);">Apri</span>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private Article? FeaturedArticle => ArticleStore.Articles.FirstOrDefault();
+    private IEnumerable<Article> OtherArticles => ArticleStore.Articles.Skip(1);
+}

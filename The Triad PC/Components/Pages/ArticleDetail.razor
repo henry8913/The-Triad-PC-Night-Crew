@@ -1,0 +1,80 @@
+@page "/magazine/{Slug}"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>@article?.Title | Magazine</PageTitle>
+
+@if (article == null)
+{
+    <section class="py-5 text-center">
+        <div class="container">
+            <h1 class="display-4 fw-semibold mb-3">Articolo non trovato</h1>
+            <p class="nc-muted mb-4">La pagina che cerchi non esiste o è stata rimossa.</p>
+            <a class="btn nc-btn" href="magazine">Torna al Magazine</a>
+        </div>
+    </section>
+}
+else
+{
+    <article class="pb-5">
+        <!-- Hero Header dell'articolo -->
+        <header class="nc-article-header position-relative mb-5" style="min-height: 50vh; display: flex; align-items: flex-end;">
+            <img src="@article.ImageUrl" alt="@article.Title" class="position-absolute w-100 h-100 object-fit-cover" style="top:0; left:0; z-index:-2;" />
+            <div class="position-absolute w-100 h-100" style="top:0; left:0; z-index:-1; background: linear-gradient(180deg, rgba(7,7,11,0.2) 0%, rgba(7,7,11,0.85) 60%, rgba(7,7,11,1) 100%);"></div>
+            
+            <div class="container px-3 px-lg-4 pt-5 pb-4">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto text-center">
+                        <div class="mb-3 d-flex justify-content-center gap-2">
+                            <span class="nc-chip nc-chip-strong">@article.Category</span>
+                            <span class="nc-chip border-0 bg-transparent text-light">@article.Date • @article.ReadTime min read</span>
+                        </div>
+                        <h1 class="display-4 fw-bold mb-3 nc-article-title" style="letter-spacing: -0.03em;">@article.Title</h1>
+                        <p class="lead nc-muted mb-0">@article.Excerpt</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Corpo dell'articolo -->
+        <div class="container px-3 px-lg-4">
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="nc-article-content fs-5" style="line-height: 1.8; color: rgba(244, 246, 255, 0.85);">
+                        @((MarkupString)article.ContentHtml)
+                    </div>
+
+                    <!-- Author/Share Footer -->
+                    <div class="mt-5 pt-4 border-top" style="border-color: var(--nc-border) !important;">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="nc-avatar bg-dark rounded-circle border d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; border-color: rgba(255,77,0,0.5) !important;">
+                                    <span class="fw-bold" style="color: var(--nc-accent);">NC</span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">Redazione Night Crew</div>
+                                    <div class="nc-muted fs-6">The Triad PC</div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-light btn-sm" style="border-color: rgba(255,255,255,0.18);">Condividi</button>
+                                <a class="btn nc-btn btn-sm" href="magazine">Torna agli articoli</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+}
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private Article? article;
+
+    protected override void OnParametersSet()
+    {
+        article = ArticleStore.GetBySlug(Slug);
+    }
+}

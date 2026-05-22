@@ -1,0 +1,91 @@
+@page "/events"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>Eventi</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="nc-hero mb-4">
+            <img class="nc-hero-bg" src="images/unsplash/hero-home.jpg" alt="Neon street at night" loading="lazy" />
+            <div class="nc-hero-overlay"></div>
+            <div class="nc-hero-content">
+                <div class="nc-kicker mb-2">Esplora</div>
+                <h1 class="display-5 fw-semibold mb-2">Eventi in arrivo</h1>
+                <div class="nc-muted">Filtra per città, mood e data. I dati API arrivano qui.</div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="nc-card p-3 p-md-4">
+                    <div class="fw-semibold mb-2">Filtri</div>
+                    <div class="nc-muted mb-3">Placeholder UI (logica in arrivo)</div>
+
+                    <div class="mb-3">
+                        <label class="form-label mb-1 nc-muted">Città</label>
+                        <input class="form-control nc-input" value="Milano" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label mb-1 nc-muted">Mood</label>
+                        <select class="form-select nc-select">
+                            <option selected>Qualsiasi</option>
+                            <option>Jazz</option>
+                            <option>Techno</option>
+                            <option>Live</option>
+                            <option>Club</option>
+                            <option>Comedy</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label mb-1 nc-muted">Quando</label>
+                        <select class="form-select nc-select">
+                            <option selected>Stasera</option>
+                            <option>Questo weekend</option>
+                            <option>Prossimi 7 giorni</option>
+                            <option>Questo mese</option>
+                        </select>
+                    </div>
+
+                    <button class="btn nc-btn w-100">Applica</button>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="row g-3">
+                    @foreach (var e in EventStore.Events)
+                    {
+                        <div class="col-12 col-md-6">
+                            <a href="events/@e.Slug" class="text-decoration-none d-block h-100">
+                                <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
+                                    <div class="nc-img-wrap">
+                                        <img class="nc-img" src="@e.ImageUrl" alt="@e.Title" loading="lazy" />
+                                        <div class="nc-img-gradient"></div>
+                                        <div class="nc-img-badges">
+                                            <span class="nc-chip nc-chip-strong">@e.Category</span>
+                                            <span class="nc-chip">@e.City</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-3 flex-grow-1 d-flex flex-column">
+                                        <div class="fw-semibold fs-5 mb-1 nc-article-title" style="color: var(--nc-text);">@e.Title</div>
+                                        <div class="nc-muted mb-3 flex-grow-1">@e.Venue</div>
+                                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                                            <span class="nc-muted">@e.Date</span>
+                                            <span class="nc-chip nc-chip-strong">@e.Price</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+
+}

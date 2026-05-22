@@ -1,0 +1,202 @@
+@page "/"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>The Triad PC — Night Crew</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="nc-hero mb-4">
+            <img class="nc-hero-bg" src="/images/unsplash/hero-home.jpg" alt="Neon city at night" loading="lazy" />
+            <div class="nc-hero-overlay"></div>
+            <div class="nc-hero-content">
+                <div class="d-flex gap-2 flex-wrap mb-3">
+                    <span class="nc-chip nc-chip-strong">Dark Tech</span>
+                    <span class="nc-chip">Eventi</span>
+                    <span class="nc-chip">Locali</span>
+                    <span class="nc-chip">Night life</span>
+                </div>
+                <h1 class="display-4 fw-semibold mb-2">Domina la notte.</h1>
+                <div class="nc-muted fs-5 mb-3">Città + mood. Poi il resto lo fa Night Crew.</div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn nc-btn btn-lg" href="events">Esplora eventi</a>
+                    <a class="btn btn-outline-light btn-lg" style="border-color: rgba(255,255,255,0.18);" href="cities">Scegli città</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row gy-4">
+            <div class="col-lg-8">
+                <div class="nc-kicker mb-2">Guida notturna</div>
+                <h1 class="display-4 fw-semibold nc-article-title mb-3">Eventi, locali e notti da ricordare.</h1>
+                <p class="lead nc-muted mb-4">
+                    Selezione editoriale + aggregatore intelligente. Neon arancio, zero sbatti.
+                </p>
+
+                <div class="nc-card p-3 p-md-4 mb-4">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label mb-1 nc-muted">Città</label>
+                            <input class="form-control nc-input" value="Milano" />
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label mb-1 nc-muted">Mood</label>
+                            <select class="form-select nc-select">
+                                <option selected>Qualsiasi</option>
+                                <option>Jazz</option>
+                                <option>Techno</option>
+                                <option>Live</option>
+                                <option>Comedy</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-2 d-grid">
+                            <button class="btn nc-btn btn-lg">Cerca</button>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap mt-3">
+                        <span class="nc-chip nc-chip-strong">Stasera</span>
+                        <span class="nc-chip">Weekend</span>
+                        <span class="nc-chip">Gratis</span>
+                        <span class="nc-chip">After</span>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    @foreach (var item in Feed)
+                    {
+                        <div class="col-12 col-md-6">
+                            <a class="text-decoration-none d-block h-100" href="events/@item.Slug">
+                                <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
+                                    <div class="nc-img-wrap">
+                                        <img class="nc-img" src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
+                                        <div class="nc-img-gradient"></div>
+                                        <div class="nc-img-badges">
+                                            <span class="nc-chip nc-chip-strong">@item.Category</span>
+                                            <span class="nc-chip">@item.City</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 flex-grow-1 d-flex flex-column">
+                                        <div class="fw-semibold fs-5 nc-article-title mb-1" style="color: var(--nc-text);">@item.Title</div>
+                                        <div class="nc-muted mb-3 flex-grow-1">@item.Excerpt</div>
+                                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                                            <span class="nc-muted">@item.Date</span>
+                                            <span class="nc-chip" style="color: var(--nc-accent); border-color: rgba(255,77,0,0.3);">Apri</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="nc-card p-3 p-md-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="fw-semibold">Gabo AI</div>
+                        <span class="nc-chip nc-chip-strong">Chat</span>
+                    </div>
+                    <div class="nc-muted mb-3">
+                        Apri l’icona in basso a destra e chiedi: “stasera jazz a Piacenza”.
+                    </div>
+                    <div class="nc-divider my-3"></div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="nc-chip">Piacenza</span>
+                        <span class="nc-chip">Milano</span>
+                        <span class="nc-chip">Bologna</span>
+                        <span class="nc-chip">Torino</span>
+                    </div>
+                </div>
+
+                <div id="in-evidenza" class="nc-card p-3 p-md-4">
+                    <div class="nc-kicker mb-2">In evidenza</div>
+                    <div class="fw-semibold fs-4 nc-article-title mb-2">The Triad Journal</div>
+                    <div class="nc-muted mb-3">Leggi le nostre guide, interviste e consigli per non sbagliare serata.</div>
+                    <div class="d-grid">
+                        <a class="btn btn-outline-light" style="border-color: rgba(255,255,255,0.18);" href="magazine">Vai al Magazine</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="pb-5">
+    <div class="container px-3 px-lg-4">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+            <div>
+                <div class="nc-kicker mb-2">Recensioni</div>
+                <h2 class="h3 fw-semibold mb-1">La gente ci torna.</h2>
+                <div class="nc-muted">Demo testi, stile “card”.</div>
+            </div>
+            <span class="nc-chip">Senza account</span>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var r in Reviews)
+            {
+                <div class="col-12 col-md-4">
+                    <div class="nc-card p-3 p-md-4 h-100 nc-card-hover">
+                        <div class="fw-semibold mb-2">“@r.Quote”</div>
+                        <div class="nc-muted mb-3">@r.Detail</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="nc-muted">— @r.Author</span>
+                            <span class="nc-chip nc-chip-strong">@r.Tag</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="pb-5">
+    <div class="container px-3 px-lg-4">
+        <div class="nc-card p-3 p-md-4">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-8">
+                    <div class="fw-semibold fs-4 nc-article-title mb-1">Newsletter “Night Drop”</div>
+                    <div class="nc-muted">Una mail a settimana con i migliori eventi e scoperte.</div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="d-flex gap-2">
+                        <input class="form-control nc-input" placeholder="Email" />
+                        <button class="btn nc-btn">Iscriviti</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="pb-5">
+    <div class="container px-3 px-lg-4">
+        <div class="nc-card p-3 p-md-4">
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="fw-semibold mb-1">The Triad PC — Night Crew</div>
+                    <div class="nc-muted">Dark tech per notti veloci. Creato a Piacenza.</div>
+                </div>
+                <div class="col-lg-6 d-flex gap-2 flex-wrap justify-content-lg-end">
+                    <a class="nc-chip text-decoration-none" href="events">Eventi</a>
+                    <a class="nc-chip text-decoration-none" href="cities">Città</a>
+                    <a class="nc-chip text-decoration-none" href="magazine">Magazine</a>
+                    <a class="nc-chip text-decoration-none" href="venues">Per i Locali</a>
+                    <a class="nc-chip text-decoration-none" href="about">Chi Siamo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+@code {
+    private IEnumerable<Event> Feed => EventStore.Events;
+
+    private static readonly Review[] Reviews =
+    [
+        new("Mi ha salvato il weekend.", "In 2 minuti ho trovato un live e ho salvato tutto nei preferiti.", "Sara, Milano", "Velocità"),
+        new("Finalmente qualcosa di pulito.", "Niente spam, niente registrazioni. Solo proposte sensate.", "Luca, Piacenza", "Semplice"),
+        new("Il mood è centrato.", "Scrivo come parlo e l’assistente capisce cosa intendo.", "Marta, Bologna", "AI")
+    ];
+
+    private sealed record Review(string Quote, string Detail, string Author, string Tag);
+}

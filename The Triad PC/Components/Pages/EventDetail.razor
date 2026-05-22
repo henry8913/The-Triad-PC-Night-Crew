@@ -1,0 +1,113 @@
+@page "/events/{Slug}"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>@evt?.Title | Evento</PageTitle>
+
+@if (evt == null)
+{
+    <section class="py-5 text-center">
+        <div class="container">
+            <h1 class="display-4 fw-semibold mb-3">Evento non trovato</h1>
+            <p class="nc-muted mb-4">L'evento che cerchi è passato o l'URL è errato.</p>
+            <a class="btn nc-btn" href="events">Cerca altri eventi</a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="pb-5">
+        <div class="nc-hero rounded-0 mb-5" style="min-height: 45vh; border-bottom: 1px solid var(--nc-border);">
+            <img class="nc-hero-bg" src="@evt.ImageUrl" alt="@evt.Title" loading="lazy" />
+            <div class="nc-img-gradient" style="background: linear-gradient(180deg, rgba(7,7,11,0) 0%, rgba(7,7,11,0.95) 100%);"></div>
+            
+            <div class="container px-3 px-lg-4 position-relative h-100 d-flex align-items-end pb-4" style="z-index: 10;">
+                <div class="row w-100">
+                    <div class="col-lg-8">
+                        <div class="d-flex gap-2 mb-3">
+                            <span class="nc-chip nc-chip-strong">@evt.Category</span>
+                            <span class="nc-chip">@evt.City</span>
+                        </div>
+                        <h1 class="display-4 fw-bold mb-2 nc-article-title">@evt.Title</h1>
+                        <p class="lead nc-muted mb-0">@evt.Excerpt</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container px-3 px-lg-4">
+            <div class="row g-4">
+                <!-- Main Info -->
+                <div class="col-lg-8">
+                    <div class="nc-card p-4 p-md-5 mb-4">
+                        <h2 class="h4 fw-semibold mb-3">Info Evento</h2>
+                        <p class="fs-5 nc-muted" style="line-height: 1.7;">@evt.Description</p>
+                        
+                        <div class="nc-divider my-4"></div>
+                        
+                        <div class="d-flex gap-2 flex-wrap mb-2">
+                            <span class="nc-chip" style="background: rgba(255,255,255,0.03);">🔥 Trending a @evt.City</span>
+                            <span class="nc-chip" style="background: rgba(255,255,255,0.03);">🎵 Selezione The Triad</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sticky Sidebar -->
+                <div class="col-lg-4">
+                    <div class="nc-card p-4 sticky-top" style="top: 6rem;">
+                        <div class="mb-4">
+                            <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Quando</div>
+                            <div class="fs-5 fw-semibold">@evt.Date</div>
+                            <div class="nc-muted">@evt.Time</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Dove</div>
+                            <div class="fs-5 fw-semibold">@evt.Venue</div>
+                            <div class="nc-muted">@evt.Address</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Ingresso</div>
+                            <div class="fs-4 fw-semibold" style="color: var(--nc-accent);">@evt.Price</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn nc-btn btn-lg fw-semibold shadow-none" style="border-radius: 0.75rem;">Acquista Biglietto</button>
+                            <button class="btn btn-outline-light btn-lg d-flex align-items-center justify-content-center gap-2" style="border-radius: 0.75rem; border-color: rgba(255,255,255,0.18);" @onclick="ToggleFavorite">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="@(isFavorite ? "currentColor" : "none")" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+                                </svg>
+                                @(isFavorite ? "Salvato nei Preferiti" : "Salva nei Preferiti")
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <small class="nc-muted">Acquisto tramite piattaforma partner sicura.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private Event? evt;
+    private bool isFavorite = false;
+
+    protected override void OnParametersSet()
+    {
+        evt = EventStore.GetBySlug(Slug);
+        // Resetta lo stato del preferito al cambio di evento (mock)
+        isFavorite = false;
+    }
+
+    private void ToggleFavorite()
+    {
+        isFavorite = !isFavorite;
+        // Qui in futuro andremo a chiamare il LocalStorage o l'API
+    }
+}

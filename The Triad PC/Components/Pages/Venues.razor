@@ -1,0 +1,100 @@
+@page "/venues"
+
+<PageTitle>Per i Locali</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="row g-4 align-items-center mb-5">
+            <div class="col-lg-6">
+                <div class="nc-kicker mb-2">Partner Network</div>
+                <h1 class="display-4 fw-semibold mb-3">Riempi la pista. <br />Senza algoritmi ciechi.</h1>
+                <p class="lead nc-muted mb-4">
+                    Night Crew porta il tuo evento esattamente a chi sta cercando quel mood. 
+                    Zero bot, solo gente che vuole fare serata.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a class="btn nc-btn btn-lg" href="#contact">Inizia ora</a>
+                    <a class="btn btn-outline-light btn-lg" style="border-color: rgba(255,255,255,0.18);" href="about">Chi siamo</a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="nc-hero" style="min-height: 24rem;">
+                    <img class="nc-hero-bg" src="images/unsplash/venue-hero.jpg" alt="Empty club ready for party" loading="lazy" />
+                    <div class="nc-img-gradient"></div>
+                    <div class="nc-hero-content" style="position: absolute; bottom: 0;">
+                        <span class="nc-chip nc-chip-strong mb-2">Risultati reali</span>
+                        <div class="fw-semibold fs-5">"Da quando siamo su Night Crew, il giovedì è il nuovo sabato."</div>
+                        <div class="nc-muted fs-6">— Art Club, Milano</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-12 col-md-4">
+                <div class="nc-card p-3 p-md-4 h-100">
+                    <div class="fw-semibold fs-4 mb-2" style="color: var(--nc-accent);">01</div>
+                    <div class="fw-semibold fs-5 mb-2">Targeting Intelligente</div>
+                    <div class="nc-muted">Gabo AI analizza il mood del tuo locale e lo propone a chi cerca esattamente quella vibe (es. "jazz intimo" o "techno spinta").</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="nc-card p-3 p-md-4 h-100">
+                    <div class="fw-semibold fs-4 mb-2" style="color: var(--nc-accent);">02</div>
+                    <div class="fw-semibold fs-5 mb-2">Zero Commissioni Nascoste</div>
+                    <div class="nc-muted">Il piano base è gratuito. Paghi solo se vuoi spingere un evento in "Evidenza" nel feed editoriale.</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="nc-card p-3 p-md-4 h-100">
+                    <div class="fw-semibold fs-4 mb-2" style="color: var(--nc-accent);">03</div>
+                    <div class="fw-semibold fs-5 mb-2">Integrazione Veloce</div>
+                    <div class="nc-muted">Hai già un feed RSS o un sito? Ci colleghiamo noi tramite API. Zero lavoro extra per il tuo team.</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="contact" class="nc-card p-4 p-md-5 mx-auto" style="max-width: 48rem;">
+            <div class="text-center mb-4">
+                <h2 class="h3 fw-semibold mb-2">Candidati come Partner</h2>
+                <div class="nc-muted">Selezioniamo i locali con cura per mantenere alta la qualità del feed.</div>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label nc-muted mb-1">Nome Locale / Organizzazione</label>
+                    <input class="form-control nc-input" placeholder="Es. The Warehouse" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label nc-muted mb-1">Città</label>
+                    <input class="form-control nc-input" placeholder="Es. Piacenza" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label nc-muted mb-1">Email Referente</label>
+                    <input type="email" class="form-control nc-input" placeholder="hello@locale.it" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label nc-muted mb-1">Vibe Principale</label>
+                    <select class="form-select nc-select">
+                        <option selected>Scegli...</option>
+                        <option>Club / Discoteca</option>
+                        <option>Live Music / Concerti</option>
+                        <option>Cocktail Bar / Lounge</option>
+                        <option>Underground / Niche</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label nc-muted mb-1">Link Instagram o Sito</label>
+                    <input class="form-control nc-input" placeholder="https://instagram.com/..." />
+                </div>
+                <div class="col-12 mt-4">
+                    <button class="btn nc-btn w-100 btn-lg">Invia Richiesta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+
+}

@@ -1,0 +1,84 @@
+@rendermode InteractiveServer
+
+<button class="nc-chat-fab" type="button" @onclick="Toggle" aria-label="Apri chat con Gabo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v18" />
+        <path d="m3 12 18 0" />
+        <path d="m8.5 8.5 7 7" />
+        <path d="m15.5 8.5-7 7" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3" />
+    </svg>
+</button>
+
+<div class="nc-chat-panel @(isOpen ? "is-open" : "")" role="dialog" aria-label="Chat Gabo" aria-modal="false">
+    <div class="nc-chat-panel-header">
+        <div class="nc-chat-title">
+            <div class="nc-chat-title-main">Gabo AI</div>
+            <div class="nc-chat-title-sub">Assistente Night Crew</div>
+        </div>
+        <button class="nc-chat-close" type="button" @onclick="Close" aria-label="Chiudi chat">✕</button>
+    </div>
+
+    <div class="nc-chat-messages">
+        @foreach (var m in messages)
+        {
+            <div class="nc-chat-msg @(m.Role == ChatRole.User ? "is-user" : "is-bot")">
+                <div class="nc-chat-bubble">@m.Text</div>
+            </div>
+        }
+    </div>
+
+    <div class="nc-chat-input">
+        <input class="form-control nc-input"
+               @bind="draft"
+               @bind:event="oninput"
+               placeholder="Scrivi a Gabo…"
+               @onkeydown="OnKeyDown" />
+        <button class="btn nc-btn" type="button" @onclick="Send" disabled="@string.IsNullOrWhiteSpace(draft)">Invia</button>
+    </div>
+</div>
+
+@code {
+    private bool isOpen;
+    private string draft = "";
+    private readonly List<ChatMessage> messages =
+    [
+        new(ChatRole.Bot, "Ciao! Scegli città e mood: ti trovo gli eventi di stasera. Prova “Milano techno” o “Roma jazz”.")
+    ];
+
+    private void Toggle() => isOpen = !isOpen;
+    private void Close() => isOpen = false;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await Send();
+        }
+    }
+
+    private Task Send()
+    {
+        var text = draft.Trim();
+        if (text.Length == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        messages.Add(new(ChatRole.User, text));
+        draft = "";
+
+        messages.Add(new(ChatRole.Bot, "Ricevuto. Quando colleghiamo le API, ti rispondo con eventi reali e link ai biglietti."));
+
+        isOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private enum ChatRole
+    {
+        User,
+        Bot
+    }
+
+    private sealed record ChatMessage(ChatRole Role, string Text);
+}

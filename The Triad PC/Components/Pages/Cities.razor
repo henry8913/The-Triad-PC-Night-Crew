@@ -1,0 +1,61 @@
+@page "/cities"
+
+<PageTitle>Città</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+            <div>
+                <div class="nc-kicker mb-2">Selezione</div>
+                <h1 class="display-6 fw-semibold mb-1">Scegli la tua città</h1>
+                <div class="nc-muted">Punti caldi, quartieri e notti consigliate.</div>
+            </div>
+            <span class="nc-chip nc-chip-strong">Italia</span>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var c in CityList)
+            {
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="nc-card nc-card-hover h-100 overflow-hidden">
+                        <div class="nc-img-wrap nc-img-wrap-tall">
+                            <img class="nc-img" src="@c.ImageUrl" alt="@c.Name" loading="lazy" />
+                            <div class="nc-img-gradient"></div>
+                            <div class="nc-img-badges">
+                                <span class="nc-chip nc-chip-strong">@c.Name</span>
+                                <span class="nc-chip">@c.Tagline</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3">
+                            <div class="nc-muted mb-2">@c.Description</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="nc-muted">@c.Highlight</span>
+                                <a class="btn btn-sm nc-btn" href="events">Esplora</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private static readonly CityCard[] CityList =
+    [
+        new("Piacenza", "Local gems", "Locale, veloce, concreto.", "Consigli Night Crew", "/images/unsplash/city-1.jpg"),
+        new("Milano", "Always on", "Live, club, mostre e notti infinite.", "Trending", "/images/unsplash/hero-home.jpg"),
+        new("Bologna", "Underground", "Cantine, live, sperimentale.", "Live picks", "/images/unsplash/city-3.jpg"),
+        new("Torino", "Dark culture", "Techno, arte, cinema e pioggia.", "Techno", "/images/unsplash/city-4.jpg"),
+        new("Roma", "Late classics", "Teatro, jazz, cocktail bar.", "Jazz", "/images/unsplash/city-2.jpg"),
+        new("Napoli", "Energy", "Ritmi, street, vista mare.", "Club + live", "/images/unsplash/city-3.jpg")
+    ];
+
+    private sealed record CityCard(
+        string Name,
+        string Tagline,
+        string Description,
+        string Highlight,
+        string ImageUrl);
+}

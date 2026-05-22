@@ -1,0 +1,80 @@
+@page "/favorites"
+@using TheTriadPCNightCrew.Services
+
+<PageTitle>I Tuoi Preferiti</PageTitle>
+
+<section class="py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
+            <div>
+                <div class="nc-kicker mb-2">Area Personale</div>
+                <h1 class="display-6 fw-semibold mb-1">I Tuoi Salvataggi</h1>
+                <div class="nc-muted">Eventi salvati in locale nel tuo browser.</div>
+            </div>
+        </div>
+
+        @if (!SavedEvents.Any())
+        {
+            <div class="nc-card p-5 text-center">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 text-muted">
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+                </svg>
+                <h3 class="fw-semibold fs-4 mb-2">Nessun evento salvato</h3>
+                <p class="nc-muted mb-4">Esplora la sezione eventi e usa l'icona del segnalibro per salvarli qui.</p>
+                <a class="btn nc-btn" href="events">Esplora Eventi</a>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var e in SavedEvents)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <a href="events/@e.Slug" class="text-decoration-none d-block h-100">
+                            <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
+                                <div class="nc-img-wrap">
+                                    <img class="nc-img" src="@e.ImageUrl" alt="@e.Title" loading="lazy" />
+                                    <div class="nc-img-gradient"></div>
+                                    <div class="nc-img-badges">
+                                        <span class="nc-chip nc-chip-strong">@e.Category</span>
+                                    </div>
+                                    <button class="position-absolute btn btn-sm p-1 rounded-circle bg-dark border-0" style="top: 0.85rem; right: 0.85rem; color: var(--nc-accent); z-index: 20;" @onclick:preventDefault @onclick="() => Remove(e)">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div class="p-3 flex-grow-1 d-flex flex-column">
+                                    <div class="fw-semibold fs-5 mb-1 nc-article-title" style="color: var(--nc-text);">@e.Title</div>
+                                    <div class="nc-muted mb-3 flex-grow-1">@e.City • @e.Date</div>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                                        <span class="nc-muted">@e.Time</span>
+                                        <span class="nc-chip nc-chip-strong">Acquista</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    // Simulazione di eventi salvati per mostrare l'UI
+    private List<Event> SavedEvents = new();
+
+    protected override void OnInitialized()
+    {
+        // Mock: carichiamo i primi due eventi per far vedere come funziona la pagina
+        var allEvents = EventStore.Events.Take(2).ToList();
+        SavedEvents = allEvents;
+    }
+
+    private void Remove(Event evt)
+    {
+        SavedEvents.Remove(evt);
+    }
+}
