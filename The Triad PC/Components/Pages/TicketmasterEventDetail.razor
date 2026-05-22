@@ -1,4 +1,4 @@
-@page "/events/{slug}"
+@page "/events/tm/{Id}"
 @using TheTriadPCNightCrew.Services
 @rendermode InteractiveServer
 
@@ -27,7 +27,7 @@ else if (evt is null)
     <section class="py-5 text-center">
         <div class="container">
             <h1 class="display-4 fw-semibold mb-3">Evento non trovato</h1>
-            <p class="nc-muted mb-4">Lo slug non è valido o l'evento non è più disponibile.</p>
+            <p class="nc-muted mb-4">L'ID non è valido o l'evento non è più disponibile.</p>
             <a class="btn nc-btn" href="/events">Cerca altri eventi</a>
         </div>
     </section>
@@ -71,7 +71,7 @@ else
                             <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Quando</div>
                             <div class="fs-5 fw-semibold">@FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
                         </div>
-                        
+
                         <div class="mb-4">
                             <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Dove</div>
                             <div class="fs-5 fw-semibold">@evt.Venue</div>
@@ -95,7 +95,7 @@ else
                                 }
                             }
                         </div>
-                        
+
                         <div class="d-grid gap-2">
                             @if (!string.IsNullOrWhiteSpace(evt.Url))
                             {
@@ -107,7 +107,7 @@ else
                                 Torna alla lista
                             </a>
                         </div>
-                        
+
                         <div class="mt-4 text-center">
                             <small class="nc-muted">Dati via Ticketmaster Discovery API.</small>
                         </div>
@@ -119,8 +119,7 @@ else
 }
 
 @code {
-    [Parameter]
-    public string Slug { get; set; } = "";
+    [Parameter] public string Id { get; set; } = "";
 
     [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
@@ -144,13 +143,7 @@ else
 
         try
         {
-            if (!TicketmasterSlug.TryExtractId(Slug, out var id))
-            {
-                evt = null;
-                return;
-            }
-
-            evt = await http.GetFromJsonAsync<TicketmasterApi.TicketmasterEventDetail>($"/api/ticketmaster/events/{Uri.EscapeDataString(id)}");
+            evt = await http.GetFromJsonAsync<TicketmasterApi.TicketmasterEventDetail>($"/api/ticketmaster/events/{Uri.EscapeDataString(Id)}");
         }
         catch (Exception ex)
         {

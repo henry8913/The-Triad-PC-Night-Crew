@@ -1,5 +1,9 @@
 @page "/"
 @using TheTriadPCNightCrew.Services
+@rendermode InteractiveServer
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IHttpClientFactory HttpClientFactory
 
 <PageTitle>The Triad PC — Night Crew</PageTitle>
 
@@ -18,8 +22,8 @@
                 <h1 class="display-4 fw-semibold mb-2">Domina la notte.</h1>
                 <div class="nc-muted fs-5 mb-3">Città + mood. Poi il resto lo fa Night Crew.</div>
                 <div class="d-flex gap-2 flex-wrap">
-                    <a class="btn nc-btn btn-lg" href="events">Esplora eventi</a>
-                    <a class="btn btn-outline-light btn-lg" style="border-color: rgba(255,255,255,0.18);" href="cities">Scegli città</a>
+                    <a class="btn nc-btn btn-lg" href="/events">Esplora eventi</a>
+                    <a class="btn btn-outline-light btn-lg" style="border-color: rgba(255,255,255,0.18);" href="/cities">Scegli città</a>
                 </div>
             </div>
         </div>
@@ -34,57 +38,133 @@
 
                 <div class="nc-card p-3 p-md-4 mb-4">
                     <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-5">
-                            <label class="form-label mb-1 nc-muted">Città</label>
-                            <input class="form-control nc-input" value="Milano" />
+                        <div class="col-12 col-md-4">
+                            <label class="form-label mb-1 nc-muted">Quando</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.Today ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Today)">
+                                    Oggi
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.Weekend ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Weekend)">
+                                    Weekend
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.ThisWeek ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.ThisWeek)">
+                                    Settimana
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.All ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.All)">
+                                    Tutti
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-12 col-md-5">
-                            <label class="form-label mb-1 nc-muted">Mood</label>
-                            <select class="form-select nc-select">
-                                <option selected>Qualsiasi</option>
-                                <option>Jazz</option>
-                                <option>Techno</option>
-                                <option>Live</option>
-                                <option>Comedy</option>
+
+                        <div class="col-12 col-md-3">
+                            <label class="form-label mb-1 nc-muted">Città (fallback)</label>
+                            <input class="form-control nc-input" @bind="city" @bind:event="oninput" placeholder="Milano" />
+                        </div>
+
+                        <div class="col-12 col-md-3">
+                            <label class="form-label mb-1 nc-muted">Distanza</label>
+                            <select class="form-select nc-select" @bind="radiusKm" disabled="@(!nearMe)">
+                                <option value="5">5 km</option>
+                                <option value="10">10 km</option>
+                                <option value="25">25 km</option>
+                                <option value="50">50 km</option>
                             </select>
                         </div>
+
                         <div class="col-12 col-md-2 d-grid">
-                            <button class="btn nc-btn btn-lg">Cerca</button>
+                            <button class="btn nc-btn btn-lg" @onclick="GoToEvents">Cerca</button>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap mt-3">
-                        <span class="nc-chip nc-chip-strong">Stasera</span>
-                        <span class="nc-chip">Weekend</span>
-                        <span class="nc-chip">Gratis</span>
-                        <span class="nc-chip">After</span>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" role="switch" @bind="nearMe" />
+                            </div>
+                            <span class="nc-muted">Vicino a me</span>
+                        </div>
+
+                        @if (nearMe)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-light" style="border-color: rgba(255,255,255,0.18);"
+                                    @onclick="GetLocation" disabled="@isLocating">
+                                @(isLocating ? "Posizione…" : (HasCoords ? "Posizione ok" : "Usa posizione"))
+                            </button>
+                        }
                     </div>
+
+                    @if (!string.IsNullOrWhiteSpace(geoError))
+                    {
+                        <div class="nc-muted mt-2" style="color: rgba(255,77,0,0.95);">
+                            @geoError
+                        </div>
+                    }
                 </div>
 
                 <div class="row g-3">
-                    @foreach (var item in Feed)
+                    @if (!string.IsNullOrWhiteSpace(feedError))
                     {
-                        <div class="col-12 col-md-6">
-                            <a class="text-decoration-none d-block h-100" href="events/@item.Slug">
-                                <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
-                                    <div class="nc-img-wrap">
-                                        <img class="nc-img" src="@item.ImageUrl" alt="@item.Title" loading="lazy" />
-                                        <div class="nc-img-gradient"></div>
-                                        <div class="nc-img-badges">
-                                            <span class="nc-chip nc-chip-strong">@item.Category</span>
-                                            <span class="nc-chip">@item.City</span>
-                                        </div>
-                                    </div>
-                                    <div class="p-3 flex-grow-1 d-flex flex-column">
-                                        <div class="fw-semibold fs-5 nc-article-title mb-1" style="color: var(--nc-text);">@item.Title</div>
-                                        <div class="nc-muted mb-3 flex-grow-1">@item.Excerpt</div>
-                                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                                            <span class="nc-muted">@item.Date</span>
-                                            <span class="nc-chip" style="color: var(--nc-accent); border-color: rgba(255,77,0,0.3);">Apri</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </a>
+                        <div class="col-12">
+                            <div class="nc-card p-4">
+                                <div class="fw-semibold mb-1">Errore feed</div>
+                                <div class="nc-muted">@feedError</div>
+                            </div>
                         </div>
+                    }
+                    else if (isFeedLoading)
+                    {
+                        <div class="col-12">
+                            <div class="nc-card p-4">
+                                <div class="nc-muted">Caricamento feed Ticketmaster…</div>
+                            </div>
+                        </div>
+                    }
+                    else if (FeedItems.Count == 0)
+                    {
+                        <div class="col-12">
+                            <div class="nc-card p-4">
+                                <div class="fw-semibold mb-1">Nessun evento trovato</div>
+                                <div class="nc-muted">Prova a cambiare “Quando” o città.</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var item in FeedItems)
+                        {
+                            <div class="col-12 col-md-6">
+                                <a class="text-decoration-none d-block h-100" href="/events/@TicketmasterSlug.Build(item.Name, item.Id)">
+                                    <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
+                                        <div class="nc-img-wrap">
+                                            <img class="nc-img" src="@(item.ImageUrl ?? "images/unsplash/hero-home.jpg")" alt="@item.Name" loading="lazy" />
+                                            <div class="nc-img-gradient"></div>
+                                            <div class="nc-img-badges">
+                                                @if (!string.IsNullOrWhiteSpace(item.Genre))
+                                                {
+                                                    <span class="nc-chip nc-chip-strong">@item.Genre</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(item.City))
+                                                {
+                                                    <span class="nc-chip">@item.City</span>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="p-3 flex-grow-1 d-flex flex-column">
+                                            <div class="fw-semibold fs-5 nc-article-title mb-1" style="color: var(--nc-text);">@item.Name</div>
+                                            <div class="nc-muted mb-3 flex-grow-1">@item.Venue</div>
+                                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                                <span class="nc-muted">@FormatDateTime(item.LocalDate, item.LocalTime)</span>
+                                                <span class="nc-chip" style="color: var(--nc-accent); border-color: rgba(255,77,0,0.3);">Apri</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        }
                     }
                 </div>
             </div>
@@ -112,7 +192,7 @@
                     <div class="fw-semibold fs-4 nc-article-title mb-2">The Triad Journal</div>
                     <div class="nc-muted mb-3">Leggi le nostre guide, interviste e consigli per non sbagliare serata.</div>
                     <div class="d-grid">
-                        <a class="btn btn-outline-light" style="border-color: rgba(255,255,255,0.18);" href="magazine">Vai al Magazine</a>
+                        <a class="btn btn-outline-light" style="border-color: rgba(255,255,255,0.18);" href="/magazine">Vai al Magazine</a>
                     </div>
                 </div>
             </div>
@@ -177,11 +257,11 @@
                     <div class="nc-muted">Dark tech per notti veloci. Creato a Piacenza.</div>
                 </div>
                 <div class="col-lg-6 d-flex gap-2 flex-wrap justify-content-lg-end">
-                    <a class="nc-chip text-decoration-none" href="events">Eventi</a>
-                    <a class="nc-chip text-decoration-none" href="cities">Città</a>
-                    <a class="nc-chip text-decoration-none" href="magazine">Magazine</a>
-                    <a class="nc-chip text-decoration-none" href="venues">Per i Locali</a>
-                    <a class="nc-chip text-decoration-none" href="about">Chi Siamo</a>
+                    <a class="nc-chip text-decoration-none" href="/events">Eventi</a>
+                    <a class="nc-chip text-decoration-none" href="/cities">Città</a>
+                    <a class="nc-chip text-decoration-none" href="/magazine">Magazine</a>
+                    <a class="nc-chip text-decoration-none" href="/venues">Per i Locali</a>
+                    <a class="nc-chip text-decoration-none" href="/about">Chi Siamo</a>
                 </div>
             </div>
         </div>
@@ -189,7 +269,243 @@
 </footer>
 
 @code {
-    private IEnumerable<Event> Feed => EventStore.Events;
+    private HttpClient http = default!;
+    private TicketmasterApi.PagedResult<TicketmasterApi.TicketmasterEventListItem>? feedResult;
+    private bool isFeedLoading;
+    private string? feedError;
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private IReadOnlyList<TicketmasterApi.TicketmasterEventListItem> FeedItems => feedResult?.Items ?? [];
+
+    private WhenFilter when = WhenFilter.Today;
+    private string city = "Milano";
+    private bool nearMe;
+    private int radiusKm = 10;
+    private double? lat;
+    private double? lng;
+    private bool isLocating;
+    private string? geoError;
+
+    private bool HasCoords => lat is not null && lng is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        http = HttpClientFactory.CreateClient();
+        http.BaseAddress = new Uri(Nav.BaseUri);
+        await LoadFeed();
+    }
+
+    private async Task SetWhen(WhenFilter value)
+    {
+        when = value;
+        await LoadFeed();
+    }
+
+    private async Task GetLocation()
+    {
+        geoError = null;
+        isLocating = true;
+
+        try
+        {
+            var pos = await JS.InvokeAsync<GeoPosition>("ncGeo.getCurrentPosition");
+            lat = pos.Latitude;
+            lng = pos.Longitude;
+        }
+        catch (Exception ex)
+        {
+            geoError = ex.Message;
+            lat = null;
+            lng = null;
+        }
+        finally
+        {
+            isLocating = false;
+        }
+    }
+
+    private async Task LoadFeed()
+    {
+        feedError = null;
+        isFeedLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var (startUtc, endUtc) = BuildDateRangeUtc();
+            var latlong = (nearMe && HasCoords)
+                ? $"{lat!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)},{lng!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}"
+                : null;
+
+            var q = new List<KeyValuePair<string, string?>>();
+            void Add(string key, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    q.Add(new(key, value));
+                }
+            }
+
+            Add("city", city);
+            Add("page", "0");
+            Add("size", "6");
+            Add("sort", "date,asc");
+
+            if (startUtc is not null) Add("startDateTime", startUtc.Value.ToString("O"));
+            if (endUtc is not null) Add("endDateTime", endUtc.Value.ToString("O"));
+            if (!string.IsNullOrWhiteSpace(latlong)) Add("latLong", latlong);
+            if (!string.IsNullOrWhiteSpace(latlong)) Add("radius", radiusKm.ToString());
+            if (!string.IsNullOrWhiteSpace(latlong)) Add("unit", "km");
+
+            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/api/ticketmaster/events", q);
+            using var response = await http.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                feedResult = System.Text.Json.JsonSerializer.Deserialize<TicketmasterApi.PagedResult<TicketmasterApi.TicketmasterEventListItem>>(content, JsonOptions);
+                if (feedResult is null)
+                {
+                    feedError = "Risposta vuota dal server. Riprova tra poco.";
+                }
+            }
+            else
+            {
+                var problem = TryParseProblemDetails(content);
+                feedError = BuildUserFriendlyError(problem, response.StatusCode);
+                feedResult = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            feedError = ex.Message;
+            feedResult = null;
+        }
+        finally
+        {
+            isFeedLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private (DateTimeOffset? StartUtc, DateTimeOffset? EndUtc) BuildDateRangeUtc()
+    {
+        var today = DateTime.Today;
+        var offset = TimeZoneInfo.Local.GetUtcOffset(today);
+
+        DateTime startLocal;
+        DateTime endLocal;
+
+        switch (when)
+        {
+            case WhenFilter.Today:
+                startLocal = today;
+                endLocal = today.AddDays(1).AddTicks(-1);
+                break;
+
+            case WhenFilter.ThisWeek:
+                startLocal = today;
+                endLocal = today.AddDays(7).AddTicks(-1);
+                break;
+
+            case WhenFilter.Weekend:
+                if (today.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    startLocal = today.AddDays(-1);
+                }
+                else
+                {
+                    var daysUntilSat = ((int)DayOfWeek.Saturday - (int)today.DayOfWeek + 7) % 7;
+                    startLocal = today.AddDays(daysUntilSat);
+                }
+                endLocal = startLocal.AddDays(2).AddTicks(-1);
+                break;
+
+            default:
+                return (null, null);
+        }
+
+        var start = new DateTimeOffset(startLocal, offset).ToUniversalTime();
+        var end = new DateTimeOffset(endLocal, offset).ToUniversalTime();
+        return (start, end);
+    }
+
+    private async Task GoToEvents()
+    {
+        if (nearMe && !HasCoords)
+        {
+            await GetLocation();
+        }
+
+        var p = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(city)) p["city"] = city;
+        if (when != WhenFilter.All)
+        {
+            p["when"] = when switch
+            {
+                WhenFilter.Today => "today",
+                WhenFilter.Weekend => "weekend",
+                WhenFilter.ThisWeek => "this-week",
+                _ => "all"
+            };
+        }
+
+        if (nearMe) p["near"] = "1";
+        if (nearMe) p["radius"] = radiusKm.ToString();
+
+        if (HasCoords)
+        {
+            p["lat"] = lat!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+            p["lng"] = lng!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/events", p);
+        Nav.NavigateTo(url);
+    }
+
+    private static string FormatDateTime(string? localDate, string? localTime)
+    {
+        if (string.IsNullOrWhiteSpace(localDate))
+        {
+            return "Data da confermare";
+        }
+
+        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
+    }
+
+    private static Microsoft.AspNetCore.Mvc.ProblemDetails? TryParseProblemDetails(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ProblemDetails>(json, JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string BuildUserFriendlyError(Microsoft.AspNetCore.Mvc.ProblemDetails? problem, System.Net.HttpStatusCode statusCode)
+    {
+        // Priorità: detail -> title -> fallback con status.
+        if (!string.IsNullOrWhiteSpace(problem?.Detail))
+        {
+            return problem!.Detail!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(problem?.Title))
+        {
+            return problem!.Title!;
+        }
+
+        var status = problem?.Status ?? (int)statusCode;
+        return $"Errore nel caricamento del feed ({status}). Riprova tra poco.";
+    }
 
     private static readonly Review[] Reviews =
     [
@@ -199,4 +515,14 @@
     ];
 
     private sealed record Review(string Quote, string Detail, string Author, string Tag);
+
+    private sealed record GeoPosition(double Latitude, double Longitude, double? Accuracy);
+
+    private enum WhenFilter
+    {
+        Today,
+        Weekend,
+        ThisWeek,
+        All
+    }
 }

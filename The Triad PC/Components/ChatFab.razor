@@ -34,13 +34,17 @@
                @bind:event="oninput"
                placeholder="Scrivi a Gabo…"
                @onkeydown="OnKeyDown" />
-        <button class="btn nc-btn" type="button" @onclick="Send" disabled="@string.IsNullOrWhiteSpace(draft)">Invia</button>
+        <button class="btn nc-btn" type="button" @onclick="Send" disabled="@(isSending || string.IsNullOrWhiteSpace(draft))">Invia</button>
     </div>
 </div>
 
 @code {
+    [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
     private bool isOpen;
     private string draft = "";
+    private bool isSending;
     private readonly List<ChatMessage> messages =
     [
         new(ChatRole.Bot, "Ciao! Scegli città e mood: ti trovo gli eventi di stasera. Prova “Milano techno” o “Roma jazz”.")
@@ -57,21 +61,112 @@
         }
     }
 
-    private Task Send()
+    private async Task Send()
     {
         var text = draft.Trim();
         if (text.Length == 0)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         messages.Add(new(ChatRole.User, text));
         draft = "";
-
-        messages.Add(new(ChatRole.Bot, "Ricevuto. Quando colleghiamo le API, ti rispondo con eventi reali e link ai biglietti."));
-
         isOpen = true;
-        return Task.CompletedTask;
+        isSending = true;
+
+        var typing = new ChatMessage(ChatRole.Bot, "…");
+        messages.Add(typing);
+        StateHasChanged();
+
+        try
+        {
+            var payload = new
+            {
+                messages = messages
+                    .Where(m => m.Text != "…")
+                    .Select(m => new
+                    {
+                        role = m.Role == ChatRole.User ? "user" : "assistant",
+                        content = m.Text
+                    })
+            };
+
+            var http = HttpClientFactory.CreateClient();
+            http.BaseAddress = new Uri(Nav.BaseUri);
+
+            using var resp = await http.PostAsJsonAsync("/chat", payload);
+            var body = await resp.Content.ReadAsStringAsync();
+
+            var replyText = TryExtractReplyText(body) ??
+                            (resp.IsSuccessStatusCode ? body : $"Errore chat ({(int)resp.StatusCode}): {body}");
+
+            messages.Remove(typing);
+            messages.Add(new(ChatRole.Bot, replyText));
+        }
+        catch (Exception ex)
+        {
+            messages.Remove(typing);
+            messages.Add(new(ChatRole.Bot, $"Errore chat: {ex.Message}"));
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string? TryExtractReplyText(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                if (root.TryGetProperty("reply", out var reply) && reply.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return reply.GetString();
+
+                if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return detail.GetString();
+
+                if (root.TryGetProperty("error", out var err) && err.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return err.GetString();
+
+                if (root.TryGetProperty("text", out var text) && text.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return text.GetString();
+
+                if (root.TryGetProperty("content", out var content) && content.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return content.GetString();
+
+                if (root.TryGetProperty("title", out var title) && title.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return title.GetString();
+
+                if (root.TryGetProperty("choices", out var choices) &&
+                    choices.ValueKind == System.Text.Json.JsonValueKind.Array &&
+                    choices.GetArrayLength() > 0)
+                {
+                    var c0 = choices[0];
+                    if (c0.TryGetProperty("message", out var msg) &&
+                        msg.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                        msg.TryGetProperty("content", out var c) &&
+                        c.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        return c.GetString();
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     private enum ChatRole

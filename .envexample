@@ -1,11 +1,22 @@
-# Crea un file .env (non committarlo) con queste variabili:
-OPENROUTER_API_KEY=#...
-OPENROUTER_MODEL=#... (opzionale)
-OPENROUTER_BASE_URL=...
+# Crea un file .env (non committarlo) partendo da questo template.
+# NON inserire segreti in repo: qui solo placeholder.
 
-# Backend Gabo AI (chat)
-CHAT_API_URL=...
+# --- Gabo AI (Python) -> OpenRouter ---
+OPENROUTER_API_KEY=__INSERISCI_LA_TUA_API_KEY__
+OPENROUTER_MODEL=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 
-# Ticketmaster API (eventi)
-TICKMASTER_API_CUSTOMER_KEY=...
-TICKETMASTER_API_CUSTOMER_SECRET=...
+# Ticketmaster (usata sia dal portale .NET che, opzionalmente, dal backend chat Python)
+TICKETMASTER_API_KEY=__INSERISCI_LA_TUA_API_KEY__
+TICKETMASTER_BASE_URL=https://app.ticketmaster.com/discovery/v2/
+TICKETMASTER_LOCALE=it
+TICKETMASTER_COUNTRY=IT
+
+# --- The Triad PC (Blazor Server) -> Proxy /chat ---
+# URL completo dell'endpoint POST del backend chat (tipico locale)
+CHAT_API_URL=http://127.0.0.1:8080/chat
+
+# (Opzionale) Header di autenticazione verso il backend chat
+# Default: Authorization: Bearer <CHAT_API_KEY>
+CHAT_API_KEY=
+CHAT_API_KEY_HEADER=Authorization

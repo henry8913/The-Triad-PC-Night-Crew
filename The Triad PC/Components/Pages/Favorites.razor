@@ -21,7 +21,7 @@
                 </svg>
                 <h3 class="fw-semibold fs-4 mb-2">Nessun evento salvato</h3>
                 <p class="nc-muted mb-4">Esplora la sezione eventi e usa l'icona del segnalibro per salvarli qui.</p>
-                <a class="btn nc-btn" href="events">Esplora Eventi</a>
+                <a class="btn nc-btn" href="/events">Esplora Eventi</a>
             </div>
         }
         else
@@ -30,7 +30,7 @@
                 @foreach (var e in SavedEvents)
                 {
                     <div class="col-12 col-md-6 col-lg-4">
-                        <a href="events/@e.Slug" class="text-decoration-none d-block h-100">
+                        <a href="/events/@e.Slug" class="text-decoration-none d-block h-100">
                             <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
                                 <div class="nc-img-wrap">
                                     <img class="nc-img" src="@e.ImageUrl" alt="@e.Title" loading="lazy" />
@@ -63,14 +63,11 @@
 </section>
 
 @code {
-    // Simulazione di eventi salvati per mostrare l'UI
     private List<Event> SavedEvents = new();
 
     protected override void OnInitialized()
     {
-        // Mock: carichiamo i primi due eventi per far vedere come funziona la pagina
-        var allEvents = EventStore.Events.Take(2).ToList();
-        SavedEvents = allEvents;
+        SavedEvents = new();
     }
 
     private void Remove(Event evt)
