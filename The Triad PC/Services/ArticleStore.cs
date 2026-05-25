@@ -22,7 +22,7 @@ public static class ArticleStore
             "In Evidenza",
             "I 5 Secret Bar migliori dell'Emilia Romagna",
             "Da Piacenza a Bologna, i cocktail bar che non trovi su Google Maps. Parola d'ordine e porte nascoste nei retrobottega.",
-            "15 Ott",
+            "15 Settembre",
             7,
             "images/unsplash/mag-1.jpg",
             """
@@ -49,7 +49,7 @@ public static class ArticleStore
             "Intervista",
             "La Techno non è morta, è tornata in cantina",
             "Quattro chiacchiere con il fondatore del Basement Ritual su come i veri club stiano tornando alle origini: no foto, solo casse dritte.",
-            "12 Ott",
+            "12 Agosto",
             4,
             "images/unsplash/mag-2.jpg",
             """
@@ -70,7 +70,7 @@ public static class ArticleStore
             "Guida",
             "Cosa bere stanotte: I signature cocktail dell'autunno",
             "Neon arancio e bicchieri affumicati. Abbiamo provato (e valutato) le nuove drink list dei locali milanesi per farvi andare a colpo sicuro.",
-            "10 Ott",
+            "10 Luglio",
             6,
             "images/unsplash/mag-3.jpg",
             """
@@ -91,7 +91,7 @@ public static class ArticleStore
             "Reportage",
             "Milano Fashion Week: I party accessibili (se sai come)",
             "Non serve per forza un pass VIP per fare serata durante la settimana della moda. Ecco i locali dove l'ingresso è libero e la musica è curata.",
-            "28 Set",
+            "28 Giugno",
             5,
             "images/unsplash/venue-hero.jpg",
             """
@@ -107,7 +107,7 @@ public static class ArticleStore
             "Dietro le quinte",
             "Gabo AI: Come The Triad ha addestrato un buttafuori digitale",
             "Il nostro tech lead racconta i mesi passati ad ascoltare PR e organizzatori per creare un chatbot che capisce davvero cosa vuol dire 'far serata'.",
-            "15 Set",
+            "15 Maggio",
             8,
             "images/unsplash/team-3.jpg",
             """
