@@ -85,3 +85,54 @@ function scrollToMessageStart(containerId, messageId) {
 }
 
 globalThis.ncChat = { scrollToBottom, scrollToMessageStart };
+
+// --- Mobile viewport helpers ---
+// Su mobile (soprattutto iOS), 100vh può includere l'area occupata dalla URL bar.
+// Questo aggiorna una CSS var (--nc-vh) basata su innerHeight/visualViewport.height.
+function setViewportUnits() {
+  const docEl = globalThis.document?.documentElement;
+  if (!docEl) return false;
+
+  const height =
+    globalThis.visualViewport?.height ||
+    globalThis.innerHeight ||
+    0;
+
+  if (!height) return false;
+
+  docEl.style.setProperty("--nc-vh", `${height * 0.01}px`);
+  return true;
+}
+
+function initViewportUnits() {
+  if (globalThis.ncViewport?.__inited) return true;
+
+  try {
+    setViewportUnits();
+  } catch {
+  }
+
+  const onResize = () => {
+    try {
+      setViewportUnits();
+    } catch {
+    }
+  };
+
+  try {
+    globalThis.addEventListener("resize", onResize, { passive: true });
+    globalThis.addEventListener("orientationchange", onResize, { passive: true });
+    globalThis.visualViewport?.addEventListener("resize", onResize, { passive: true });
+    // Su iOS la variazione della URL bar può riflettersi in visualViewport scroll.
+    globalThis.visualViewport?.addEventListener("scroll", onResize, { passive: true });
+  } catch {
+  }
+
+  globalThis.ncViewport = { initViewportUnits, __inited: true };
+  return true;
+}
+
+try {
+  initViewportUnits();
+} catch {
+}

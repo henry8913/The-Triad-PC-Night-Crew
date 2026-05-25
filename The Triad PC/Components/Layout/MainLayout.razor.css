@@ -1,5 +1,7 @@
 .nc-shell {
     min-height: 100vh;
+    min-height: 100dvh;
+    min-height: calc(var(--nc-vh, 1vh) * 100);
     display: flex;
     flex-direction: column;
 }
@@ -11,6 +13,7 @@
     backdrop-filter: blur(14px);
     background: rgba(7, 7, 11, 0.7);
     border-bottom: 1px solid var(--nc-border);
+    padding-top: var(--nc-safe-top);
 }
 
 .nc-main {

@@ -52,6 +52,12 @@
     box-shadow: 0 0 0 0.2rem rgba(255, 77, 0, 0.12);
 }
 
+.nc-nav-toggler:focus-visible,
+.nc-nav-link:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.1rem rgba(7, 7, 11, 0.85), 0 0 0 0.25rem rgba(255, 77, 0, 0.35);
+}
+
 .nc-nav-links {
     display: none;
     flex-direction: column;
@@ -68,6 +74,19 @@
     border: 1px solid transparent;
     transition: all 150ms ease;
     font-weight: 500;
+}
+
+@media (pointer: coarse) {
+    .nc-nav-toggler {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .nc-nav-link {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
 }
 
 .nc-nav-link:hover {

@@ -17,14 +17,61 @@ html, body {
     --nc-accent: #ff4d00;
     --nc-accent-2: #ff8a00;
     --nc-glow: rgba(255, 77, 0, 0.28);
+    --nc-header-height: 4.25rem;
+    /* Valore di fallback: viene aggiornato via JS per gestire l'URL bar mobile (100vh "instabile") */
+    --nc-vh: 1vh;
+    --nc-safe-top: env(safe-area-inset-top, 0px);
+    --nc-safe-right: env(safe-area-inset-right, 0px);
+    --nc-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --nc-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: calc(var(--nc-header-height) + var(--nc-safe-top) + 1rem);
+}
+
+body {
+    overflow-x: hidden;
+}
+
+a, button, .btn, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (pointer: coarse) {
+    a, button, .btn, .nc-nav-link, .nc-chat-fab, .nc-chat-close {
+        touch-action: manipulation;
+    }
 }
 
 a {
     color: var(--nc-text);
+    text-decoration-color: rgba(255, 255, 255, 0.22);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
 }
 
 a:hover {
-    color: var(--nc-text);
+    color: var(--nc-accent-2);
+}
+
+a:focus-visible,
+.nc-chat-fab:focus-visible,
+.nc-chat-close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.1rem rgba(7, 7, 11, 0.85), 0 0 0 0.25rem rgba(255, 77, 0, 0.35);
+}
+
+.nc-sticky-lg {
+    position: static;
+}
+
+@media (min-width: 992px) {
+    .nc-sticky-lg {
+        position: sticky;
+        top: calc(var(--nc-header-height) + var(--nc-safe-top) + 1rem);
+    }
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .form-select:focus {
@@ -214,15 +261,17 @@ a:hover {
     }
 
     .nc-chat-fab {
-        right: 1rem;
-        bottom: 1rem;
+        right: calc(1rem + var(--nc-safe-right));
+        bottom: calc(1rem + var(--nc-safe-bottom));
     }
 
     .nc-chat-panel {
-        right: 1rem;
-        bottom: 4.75rem;
+        right: calc(1rem + var(--nc-safe-right));
+        bottom: calc(4.75rem + var(--nc-safe-bottom));
         width: calc(100vw - 2rem);
         height: min(560px, calc(100vh - 6.5rem));
+        height: min(560px, calc(100dvh - 6.5rem));
+        height: min(560px, calc((var(--nc-vh, 1vh) * 100) - 6.5rem));
     }
 }
 
@@ -244,8 +293,8 @@ a:hover {
 
 .nc-chat-fab {
     position: fixed;
-    right: 1.25rem;
-    bottom: 1.25rem;
+    right: calc(1.25rem + var(--nc-safe-right));
+    bottom: calc(1.25rem + var(--nc-safe-bottom));
     width: 3.5rem;
     height: 3.5rem;
     border-radius: 999px;
@@ -276,10 +325,12 @@ a:hover {
 
 .nc-chat-panel {
     position: fixed;
-    right: 1.25rem;
-    bottom: 5.25rem;
+    right: calc(1.25rem + var(--nc-safe-right));
+    bottom: calc(5.25rem + var(--nc-safe-bottom));
     width: min(420px, calc(100vw - 2.5rem));
     height: min(560px, calc(100vh - 7rem));
+    height: min(560px, calc(100dvh - 7rem));
+    height: min(560px, calc((var(--nc-vh, 1vh) * 100) - 7rem));
     display: none;
     flex-direction: column;
     background: linear-gradient(180deg, rgba(17, 20, 39, 0.92) 0%, rgba(13, 15, 22, 0.92) 100%);
@@ -323,6 +374,8 @@ a:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .nc-chat-close:hover {
@@ -338,6 +391,7 @@ a:hover {
     flex-direction: column;
     gap: 0.55rem;
     overflow-anchor: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .nc-chat-msg {

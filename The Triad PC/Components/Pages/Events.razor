@@ -19,94 +19,96 @@
 
         <div class="row g-3">
             <div class="col-lg-4">
-                <div class="nc-card p-3 p-md-4">
-                    <div class="fw-semibold mb-2">Filtri</div>
-                    <div class="nc-muted mb-3">Ticketmaster (server-side): data, distanza e “vicino a me”.</div>
+                <div class="nc-sticky-lg">
+                    <div class="nc-card p-3 p-md-4">
+                        <div class="fw-semibold mb-2">Filtri</div>
+                        <div class="nc-muted mb-3">Ticketmaster (server-side): data, distanza e “vicino a me”.</div>
 
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Quando</label>
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button type="button" class="btn btn-sm @(when == WhenFilter.Today ? "nc-btn" : "btn-outline-light")"
-                                    style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Today)">
-                                Oggi
-                            </button>
-                            <button type="button" class="btn btn-sm @(when == WhenFilter.Weekend ? "nc-btn" : "btn-outline-light")"
-                                    style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Weekend)">
-                                Weekend
-                            </button>
-                            <button type="button" class="btn btn-sm @(when == WhenFilter.ThisWeek ? "nc-btn" : "btn-outline-light")"
-                                    style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.ThisWeek)">
-                                Questa settimana
-                            </button>
-                            <button type="button" class="btn btn-sm @(when == WhenFilter.All ? "nc-btn" : "btn-outline-light")"
-                                    style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.All)">
-                                Tutti
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Distanza (km)</label>
-                        <select class="form-select nc-select" @bind="radiusKm" disabled="@(!nearMe)">
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <div class="form-text nc-muted" style="opacity: .8;">
-                            La distanza funziona solo con “Vicino a me”.
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <label class="form-label mb-0 nc-muted">Vicino a me</label>
-                            <div class="form-check form-switch m-0">
-                                <input class="form-check-input" type="checkbox" role="switch" checked="@nearMe" @onchange="OnNearMeChanged" />
-                            </div>
-                        </div>
-
-                        @if (nearMe)
-                        {
-                            <div class="d-grid mt-2">
-                                <button class="btn btn-outline-light" style="border-color: rgba(255,255,255,0.18);"
-                                        @onclick="GetLocation" disabled="@isLocating">
-                                    @(isLocating ? "Sto rilevando la posizione…" : (HasCoords ? "Posizione aggiornata" : "Usa la mia posizione"))
+                        <div class="mb-3">
+                            <label class="form-label mb-1 nc-muted">Quando</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.Today ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Today)">
+                                    Oggi
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.Weekend ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.Weekend)">
+                                    Weekend
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.ThisWeek ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.ThisWeek)">
+                                    Questa settimana
+                                </button>
+                                <button type="button" class="btn btn-sm @(when == WhenFilter.All ? "nc-btn" : "btn-outline-light")"
+                                        style="border-color: rgba(255,255,255,0.18);" @onclick="() => SetWhen(WhenFilter.All)">
+                                    Tutti
                                 </button>
                             </div>
+                        </div>
 
-                            @if (!string.IsNullOrWhiteSpace(geoError))
+                        <div class="mb-3">
+                            <label class="form-label mb-1 nc-muted">Distanza (km)</label>
+                            <select class="form-select nc-select" @bind="radiusKm" disabled="@(!nearMe)">
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                            <div class="form-text nc-muted" style="opacity: .8;">
+                                La distanza funziona solo con “Vicino a me”.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label mb-0 nc-muted">Vicino a me</label>
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" checked="@nearMe" @onchange="OnNearMeChanged" />
+                                </div>
+                            </div>
+
+                            @if (nearMe)
                             {
-                                <div class="nc-muted mt-2" style="color: rgba(255,77,0,0.95);">
-                                    @geoError
+                                <div class="d-grid mt-2">
+                                    <button class="btn btn-outline-light" style="border-color: rgba(255,255,255,0.18);"
+                                            @onclick="GetLocation" disabled="@isLocating">
+                                        @(isLocating ? "Sto rilevando la posizione…" : (HasCoords ? "Posizione aggiornata" : "Usa la mia posizione"))
+                                    </button>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(geoError))
+                                {
+                                    <div class="nc-muted mt-2" style="color: rgba(255,77,0,0.95);">
+                                        @geoError
+                                    </div>
+                                }
+                                <div class="nc-muted mt-2">
+                                    La città viene ignorata quando “Vicino a me” è attivo.
                                 </div>
                             }
-                            <div class="nc-muted mt-2">
-                                La città viene ignorata quando “Vicino a me” è attivo.
-                            </div>
-                        }
-                    </div>
+                        </div>
 
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Città</label>
-                        <input class="form-control nc-input" @bind="city" @bind:event="oninput" placeholder="Roma" disabled="@nearMe" />
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label mb-1 nc-muted">Città</label>
+                            <input class="form-control nc-input" @bind="city" @bind:event="oninput" placeholder="Roma" disabled="@nearMe" />
+                        </div>
 
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Keyword</label>
-                        <input class="form-control nc-input" @bind="keyword" @bind:event="oninput" placeholder="techno, jazz, live..." />
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label mb-1 nc-muted">Keyword</label>
+                            <input class="form-control nc-input" @bind="keyword" @bind:event="oninput" placeholder="techno, jazz, live..." />
+                        </div>
 
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Risultati per pagina</label>
-                        <select class="form-select nc-select" @bind="size">
-                            <option value="6">6</option>
-                            <option value="12">12</option>
-                            <option value="24">24</option>
-                        </select>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label mb-1 nc-muted">Risultati per pagina</label>
+                            <select class="form-select nc-select" @bind="size">
+                                <option value="6">6</option>
+                                <option value="12">12</option>
+                                <option value="24">24</option>
+                            </select>
+                        </div>
 
-                    <button class="btn nc-btn w-100" @onclick="Apply" disabled="@isLoading">Applica</button>
+                        <button class="btn nc-btn w-100" @onclick="Apply" disabled="@isLoading">Applica</button>
+                    </div>
                 </div>
             </div>
 
