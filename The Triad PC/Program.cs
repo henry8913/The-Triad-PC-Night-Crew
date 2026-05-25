@@ -10,6 +10,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient("Ticketmaster", (sp, client) =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
@@ -55,6 +56,20 @@ tm.MapGet("/events", async ([AsParameters] TicketmasterEventsQuery query, Ticket
     {
         return Results.Problem(statusCode: 502, title: "Ticketmaster", detail: "ApiKey non valida");
     }
+    catch (TicketmasterUpstreamHttpException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+    {
+        var page = Math.Max(0, query.Page);
+        var size = Math.Min(200, Math.Max(1, query.Size));
+        return Results.Ok(new PagedResult<TicketmasterEventListItem>([], page, size, 0, 0));
+    }
+    catch (TicketmasterUpstreamHttpException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+    {
+        return Results.Problem(statusCode: 503, title: "Ticketmaster", detail: "Rate limit Ticketmaster. Riprova tra poco.");
+    }
+    catch (TicketmasterUpstreamHttpException ex)
+    {
+        return Results.Problem(statusCode: 502, title: "Ticketmaster", detail: $"Errore Ticketmaster (HTTP {(int)ex.StatusCode}).");
+    }
     catch (TicketmasterUpstreamUnavailableException)
     {
         return Results.Problem(statusCode: 503, title: "Ticketmaster", detail: "Servizio Ticketmaster non disponibile");
@@ -79,6 +94,14 @@ tm.MapGet("/events/{id}", async (string id, TicketmasterApi ticketmaster, Cancel
     catch (TicketmasterUpstreamAuthException)
     {
         return Results.Problem(statusCode: 502, title: "Ticketmaster", detail: "ApiKey non valida");
+    }
+    catch (TicketmasterUpstreamHttpException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+    {
+        return Results.Problem(statusCode: 503, title: "Ticketmaster", detail: "Rate limit Ticketmaster. Riprova tra poco.");
+    }
+    catch (TicketmasterUpstreamHttpException ex)
+    {
+        return Results.Problem(statusCode: 502, title: "Ticketmaster", detail: $"Errore Ticketmaster (HTTP {(int)ex.StatusCode}).");
     }
     catch (TicketmasterUpstreamUnavailableException)
     {

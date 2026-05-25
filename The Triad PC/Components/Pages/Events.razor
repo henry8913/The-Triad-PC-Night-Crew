@@ -62,7 +62,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <label class="form-label mb-0 nc-muted">Vicino a me</label>
                             <div class="form-check form-switch m-0">
-                                <input class="form-check-input" type="checkbox" role="switch" @bind="nearMe" />
+                                <input class="form-check-input" type="checkbox" role="switch" checked="@nearMe" @onchange="OnNearMeChanged" />
                             </div>
                         </div>
 
@@ -81,18 +81,15 @@
                                     @geoError
                                 </div>
                             }
-                            else if (!HasCoords)
-                            {
-                                <div class="nc-muted mt-2">
-                                    Se non concedi la geolocalizzazione, usiamo la città come fallback.
-                                </div>
-                            }
+                            <div class="nc-muted mt-2">
+                                La città viene ignorata quando “Vicino a me” è attivo.
+                            </div>
                         }
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label mb-1 nc-muted">Città</label>
-                        <input class="form-control nc-input" @bind="city" @bind:event="oninput" placeholder="Milano" />
+                        <input class="form-control nc-input" @bind="city" @bind:event="oninput" placeholder="Roma" disabled="@nearMe" />
                     </div>
 
                     <div class="mb-3">
@@ -215,10 +212,10 @@
     private string? error;
 
     private string keyword = "";
-    private string city = "";
+    private string city = "Roma";
     private string classificationName = "";
     private WhenFilter when = WhenFilter.All;
-    private int radiusKm = 10;
+    private int radiusKm = 50;
     private bool nearMe;
     private double? lat;
     private double? lng;
@@ -226,7 +223,7 @@
     private string? geoError;
     private int page = 0;
     private int initialPageFromUrl = 0;
-    private int size = 12;
+    private int size = 24;
 
     protected override async Task OnInitializedAsync()
     {
@@ -252,6 +249,7 @@
                 "oggi" or "today" => WhenFilter.Today,
                 "weekend" => WhenFilter.Weekend,
                 "questa-settimana" or "thisweek" or "this-week" or "week" => WhenFilter.ThisWeek,
+                "tutti" or "all" => WhenFilter.All,
                 _ => WhenFilter.All
             };
         }
@@ -264,6 +262,10 @@
         if (q.TryGetValue("radius", out var r) && int.TryParse(r.ToString(), out var parsedRadius))
         {
             radiusKm = parsedRadius;
+        }
+        else if (nearMe)
+        {
+            radiusKm = 50;
         }
 
         if (q.TryGetValue("lat", out var la) && double.TryParse(la.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLat))
@@ -299,6 +301,32 @@
     private void SetWhen(WhenFilter value)
     {
         when = value;
+    }
+
+    private async Task OnNearMeChanged(ChangeEventArgs e)
+    {
+        var enabled = e.Value is bool b
+            ? b
+            : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+        if (nearMe == enabled)
+        {
+            return;
+        }
+
+        nearMe = enabled;
+        geoError = null;
+        lat = null;
+        lng = null;
+
+        if (nearMe)
+        {
+            radiusKm = 50;
+            when = WhenFilter.All;
+            classificationName = "";
+        }
+
+        await Task.CompletedTask;
     }
 
     private bool HasCoords => lat is not null && lng is not null;
@@ -382,7 +410,7 @@
         var p = new Dictionary<string, string?>();
 
         if (!string.IsNullOrWhiteSpace(keyword)) p["keyword"] = keyword;
-        if (!string.IsNullOrWhiteSpace(city)) p["city"] = city;
+        if (!nearMe && !string.IsNullOrWhiteSpace(city)) p["city"] = city;
         if (!string.IsNullOrWhiteSpace(classificationName)) p["genre"] = classificationName;
 
         if (when != WhenFilter.All)
@@ -488,7 +516,7 @@
             }
 
             Add("keyword", keyword);
-            Add("city", city);
+            if (!nearMe) Add("city", city);
             Add("classificationName", classificationName);
             Add("page", pageToLoad.ToString());
             Add("size", size.ToString());

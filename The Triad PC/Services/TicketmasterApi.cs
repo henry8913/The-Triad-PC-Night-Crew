@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace TheTriadPCNightCrew.Services;
 
@@ -10,6 +11,7 @@ public sealed class TicketmasterApi
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TicketmasterApi> _logger;
+    private readonly IMemoryCache _cache;
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
@@ -18,11 +20,13 @@ public sealed class TicketmasterApi
     public TicketmasterApi(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
-        ILogger<TicketmasterApi> logger)
+        ILogger<TicketmasterApi> logger,
+        IMemoryCache cache)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<PagedResult<TicketmasterEventListItem>> SearchEventsAsync(TicketmasterEventsQuery query, CancellationToken ct)
@@ -31,6 +35,12 @@ public sealed class TicketmasterApi
 
         var size = Clamp(query.Size, min: 1, max: 200);
         var page = Math.Max(0, query.Page);
+
+        var cacheKey = BuildSearchCacheKey(query, page, size);
+        if (_cache.TryGetValue(cacheKey, out PagedResult<TicketmasterEventListItem>? cached) && cached is not null)
+        {
+            return cached;
+        }
 
         var qs = BuildQueryString(
             ("apikey", apiKey),
@@ -63,13 +73,15 @@ public sealed class TicketmasterApi
             .ToList();
 
         var pageInfo = raw?.page ?? new TicketmasterPageRaw();
-        return new PagedResult<TicketmasterEventListItem>(
+        var result = new PagedResult<TicketmasterEventListItem>(
             Items: items,
             Page: pageInfo.number,
             Size: pageInfo.size,
             TotalPages: pageInfo.totalPages,
             TotalItems: pageInfo.totalElements
         );
+        _cache.Set(cacheKey, result, TimeSpan.FromSeconds(20));
+        return result;
     }
 
     public async Task<TicketmasterEventDetail?> GetEventAsync(string id, CancellationToken ct)
@@ -79,12 +91,20 @@ public sealed class TicketmasterApi
             return null;
         }
 
+        var locale = _configuration["Ticketmaster:Locale"] ?? "it";
+        var countryCode = _configuration["Ticketmaster:CountryCode"] ?? "IT";
+        var cacheKey = $"tm:event:{id}:{locale}:{countryCode}";
+        if (_cache.TryGetValue(cacheKey, out TicketmasterEventDetail? cached) && cached is not null)
+        {
+            return cached;
+        }
+
         var apiKey = GetTicketmasterApiKeyOrThrow();
 
         var qs = BuildQueryString(
             ("apikey", apiKey),
-            ("locale", _configuration["Ticketmaster:Locale"] ?? "it"),
-            ("countryCode", _configuration["Ticketmaster:CountryCode"] ?? "IT")
+            ("locale", locale),
+            ("countryCode", countryCode)
         );
 
         var http = _httpClientFactory.CreateClient("Ticketmaster");
@@ -98,7 +118,9 @@ public sealed class TicketmasterApi
             return null;
         }
 
-        return MapDetail(raw);
+        var result = MapDetail(raw);
+        _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+        return result;
     }
 
     private string GetTicketmasterApiKeyOrThrow()
@@ -274,6 +296,22 @@ public sealed class TicketmasterApi
             .ToArray();
 
         return parts.Length == 0 ? "" : "?" + string.Join("&", parts);
+    }
+
+    private static string BuildSearchCacheKey(TicketmasterEventsQuery query, int page, int size)
+    {
+        var start = query.StartDateTime?.ToUnixTimeSeconds().ToString() ?? "";
+        var end = query.EndDateTime?.ToUnixTimeSeconds().ToString() ?? "";
+        var kw = (query.Keyword ?? "").Trim().ToLowerInvariant();
+        var city = (query.City ?? "").Trim().ToLowerInvariant();
+        var cls = (query.ClassificationName ?? "").Trim().ToLowerInvariant();
+        var lat = (query.LatLong ?? "").Trim().ToLowerInvariant();
+        var unit = (query.Unit ?? "").Trim().ToLowerInvariant();
+        var sort = (query.Sort ?? "").Trim().ToLowerInvariant();
+        var country = (query.CountryCode ?? "").Trim().ToUpperInvariant();
+        var locale = (query.Locale ?? "").Trim().ToLowerInvariant();
+        var radius = query.Radius?.ToString() ?? "";
+        return $"tm:search:{country}:{locale}:{sort}:{page}:{size}:{kw}:{city}:{cls}:{start}:{end}:{lat}:{radius}:{unit}";
     }
 
     public sealed record TicketmasterEventsQuery(

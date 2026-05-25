@@ -31,7 +31,7 @@
                             <div class="nc-muted mb-2">@c.Description</div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="nc-muted">@c.Highlight</span>
-                                <a class="btn btn-sm nc-btn" href="/events">Esplora</a>
+                                <a class="btn btn-sm nc-btn" href="/events?city=@Uri.EscapeDataString(c.Name)&when=all&radius=50&size=24">Esplora</a>
                             </div>
                         </div>
                     </div>
