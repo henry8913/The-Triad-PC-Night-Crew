@@ -61,7 +61,24 @@ else
                 <div class="col-lg-8">
                     <div class="nc-card p-4 p-md-5 mb-4">
                         <h2 class="h4 fw-semibold mb-3">Info Evento</h2>
-                        <p class="fs-5 nc-muted" style="line-height: 1.7;">@(evt.Description ?? "Descrizione non disponibile.")</p>
+                        @if (!string.IsNullOrWhiteSpace(evt.Description))
+                        {
+                            <p class="fs-5 nc-muted" style="line-height: 1.7;">@evt.Description</p>
+                        }
+                        else
+                        {
+                            <div class="nc-muted" style="line-height: 1.7;">
+                                <div class="fw-semibold" style="color: var(--nc-text);">Dettagli rapidi</div>
+                                <div>Quando: @FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
+                                <div>Dove: @FormatVenueLine(evt.Venue, evt.Address, evt.City)</div>
+                                @if (!string.IsNullOrWhiteSpace(evt.Url))
+                                {
+                                    <div>
+                                        Link: <a href="@evt.Url" target="_blank" rel="noopener noreferrer">Apri su Ticketmaster</a>
+                                    </div>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -106,10 +123,6 @@ else
                             <a class="btn btn-outline-light btn-lg" style="border-radius: 0.75rem; border-color: rgba(255,255,255,0.18);" href="/events">
                                 Torna alla lista
                             </a>
-                        </div>
-
-                        <div class="mt-4 text-center">
-                            <small class="nc-muted">Dati via Ticketmaster Discovery API.</small>
                         </div>
                     </div>
                 </div>
@@ -172,5 +185,19 @@ else
         if (max is null) return $"da {min:0.##}";
         if (min == max) return $"{min:0.##}";
         return $"{min:0.##} - {max:0.##}";
+    }
+
+    private static string FormatVenueLine(string? venue, string? address, string? city)
+    {
+        var v = (venue ?? "").Trim();
+        var a = (address ?? "").Trim();
+        var c = (city ?? "").Trim();
+
+        if (v.Length == 0 && a.Length == 0 && c.Length == 0) return "Da confermare";
+        if (a.Length == 0 && c.Length == 0) return v;
+        if (a.Length == 0) return v.Length == 0 ? c : $"{v} · {c}";
+        if (c.Length == 0) return v.Length == 0 ? a : $"{v} · {a}";
+        if (v.Length == 0) return $"{a} · {c}";
+        return $"{v} · {a} · {c}";
     }
 }
