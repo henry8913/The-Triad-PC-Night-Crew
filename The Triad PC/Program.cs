@@ -20,6 +20,7 @@ builder.Services.AddHttpClient("Ticketmaster", (sp, client) =>
 });
 
 builder.Services.AddSingleton<TicketmasterApi>();
+builder.Services.AddScoped<FavoritesStore>();
 
 var app = builder.Build();
 

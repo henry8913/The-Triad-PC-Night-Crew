@@ -1,6 +1,7 @@
 @page "/events/{slug}"
 @using TheTriadPCNightCrew.Services
 @rendermode InteractiveServer
+@inject IJSRuntime JS
 
 <PageTitle>@(evt?.Name ?? "Evento") | Ticketmaster</PageTitle>
 
@@ -120,6 +121,14 @@ else
                                     Acquista Biglietto
                                 </a>
                             }
+                            <button class="btn btn-outline-light btn-lg" style="border-radius: 0.75rem; border-color: rgba(255,255,255,0.18);"
+                                    @onclick="ToggleFavorite" disabled="@isBusy">
+                                @(isFavorite ? "Rimuovi dai Preferiti" : "Salva nei Preferiti")
+                            </button>
+                            <button class="btn btn-outline-light btn-lg" style="border-radius: 0.75rem; border-color: rgba(255,255,255,0.18);"
+                                    @onclick="Share" disabled="@isBusy">
+                                Condividi Evento
+                            </button>
                             <a class="btn btn-outline-light btn-lg" style="border-radius: 0.75rem; border-color: rgba(255,255,255,0.18);" href="/events">
                                 Torna alla lista
                             </a>
@@ -137,11 +146,15 @@ else
 
     [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
+    [Inject] private FavoritesStore Favorites { get; set; } = default!;
 
     private HttpClient http = default!;
     private TicketmasterApi.TicketmasterEventDetail? evt;
     private bool isLoading;
     private string? error;
+    private bool isFavorite;
+    private bool isBusy;
+    private bool favoriteChecked;
 
     protected override void OnInitialized()
     {
@@ -154,6 +167,8 @@ else
         error = null;
         isLoading = true;
         evt = null;
+        isFavorite = false;
+        favoriteChecked = false;
 
         try
         {
@@ -172,6 +187,78 @@ else
         finally
         {
             isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (favoriteChecked || evt is null)
+        {
+            return;
+        }
+
+        favoriteChecked = true;
+        try
+        {
+            isFavorite = await Favorites.ContainsAsync(evt.Id);
+            StateHasChanged();
+        }
+        catch
+        {
+        }
+    }
+
+    private FavoriteEvent BuildFavorite()
+    {
+        var id = evt?.Id ?? "";
+        var name = evt?.Name ?? "Evento";
+        var slug = TicketmasterSlug.Build(name, id);
+
+        return new FavoriteEvent(
+            Id: id,
+            Slug: slug,
+            Name: name,
+            City: evt?.City,
+            Venue: evt?.Venue,
+            Address: evt?.Address,
+            LocalDate: evt?.LocalDate,
+            LocalTime: evt?.LocalTime,
+            ImageUrl: evt?.ImageUrl,
+            TicketmasterUrl: evt?.Url,
+            AddedAtUtc: DateTimeOffset.UtcNow
+        );
+    }
+
+    private async Task ToggleFavorite()
+    {
+        if (evt is null) return;
+        if (isBusy) return;
+        isBusy = true;
+        try
+        {
+            isFavorite = await Favorites.ToggleAsync(BuildFavorite());
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Share()
+    {
+        if (evt is null) return;
+        if (isBusy) return;
+        isBusy = true;
+        try
+        {
+            var slug = TicketmasterSlug.Build(evt.Name, evt.Id);
+            var url = $"{Nav.BaseUri.TrimEnd('/')}/events/{Uri.EscapeDataString(slug)}";
+            await JS.InvokeVoidAsync("ncShare.share", new { title = evt.Name, text = evt.Venue, url });
+        }
+        finally
+        {
+            isBusy = false;
         }
     }
 

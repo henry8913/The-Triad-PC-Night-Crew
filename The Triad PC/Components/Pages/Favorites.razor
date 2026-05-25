@@ -1,5 +1,6 @@
 @page "/favorites"
 @using TheTriadPCNightCrew.Services
+@rendermode InteractiveServer
 
 <PageTitle>I Tuoi Preferiti</PageTitle>
 
@@ -13,14 +14,20 @@
             </div>
         </div>
 
-        @if (!SavedEvents.Any())
+        @if (isLoading)
+        {
+            <div class="nc-card p-4">
+                <div class="nc-muted">Caricamento preferiti…</div>
+            </div>
+        }
+        else if (!SavedEvents.Any())
         {
             <div class="nc-card p-5 text-center">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 text-muted">
                     <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
                 </svg>
                 <h3 class="fw-semibold fs-4 mb-2">Nessun evento salvato</h3>
-                <p class="nc-muted mb-4">Esplora la sezione eventi e usa l'icona del segnalibro per salvarli qui.</p>
+                <p class="nc-muted mb-4">Apri un evento e premi “Salva nei Preferiti”.</p>
                 <a class="btn nc-btn" href="/events">Esplora Eventi</a>
             </div>
         }
@@ -33,12 +40,18 @@
                         <a href="/events/@e.Slug" class="text-decoration-none d-block h-100">
                             <div class="nc-card nc-card-hover h-100 overflow-hidden d-flex flex-column">
                                 <div class="nc-img-wrap">
-                                    <img class="nc-img" src="@e.ImageUrl" alt="@e.Title" loading="lazy" />
+                                    <img class="nc-img" src="@(e.ImageUrl ?? "/images/unsplash/hero-home.jpg")" alt="@e.Name" loading="lazy" />
                                     <div class="nc-img-gradient"></div>
                                     <div class="nc-img-badges">
-                                        <span class="nc-chip nc-chip-strong">@e.Category</span>
+                                        @if (!string.IsNullOrWhiteSpace(e.City))
+                                        {
+                                            <span class="nc-chip">@e.City</span>
+                                        }
                                     </div>
-                                    <button class="position-absolute btn btn-sm p-1 rounded-circle bg-dark border-0" style="top: 0.85rem; right: 0.85rem; color: var(--nc-accent); z-index: 20;" @onclick:preventDefault @onclick="() => Remove(e)">
+                                    <button type="button" class="position-absolute btn btn-sm p-1 rounded-circle bg-dark border-0" style="top: 0.85rem; right: 0.85rem; color: var(--nc-accent); z-index: 20;"
+                                            @onclick="() => Remove(e)"
+                                            @onclick:stopPropagation="true"
+                                            @onclick:preventDefault="true">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
                                         </svg>
@@ -46,11 +59,11 @@
                                 </div>
 
                                 <div class="p-3 flex-grow-1 d-flex flex-column">
-                                    <div class="fw-semibold fs-5 mb-1 nc-article-title" style="color: var(--nc-text);">@e.Title</div>
-                                    <div class="nc-muted mb-3 flex-grow-1">@e.City • @e.Date</div>
+                                    <div class="fw-semibold fs-5 mb-1 nc-article-title" style="color: var(--nc-text);">@e.Name</div>
+                                    <div class="nc-muted mb-3 flex-grow-1">@FormatVenueLine(e.Venue, e.City)</div>
                                     <div class="d-flex justify-content-between align-items-center mt-auto">
-                                        <span class="nc-muted">@e.Time</span>
-                                        <span class="nc-chip nc-chip-strong">Acquista</span>
+                                        <span class="nc-muted">@FormatDateTime(e.LocalDate, e.LocalTime)</span>
+                                        <span class="nc-chip nc-chip-strong">Apri</span>
                                     </div>
                                 </div>
                             </div>
@@ -63,15 +76,59 @@
 </section>
 
 @code {
-    private List<Event> SavedEvents = new();
+    [Inject] private FavoritesStore FavoritesStore { get; set; } = default!;
+
+    private List<FavoriteEvent> SavedEvents = new();
+    private bool isLoading;
 
     protected override void OnInitialized()
     {
-        SavedEvents = new();
+        isLoading = true;
     }
 
-    private void Remove(Event evt)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        SavedEvents.Remove(evt);
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            SavedEvents = (await FavoritesStore.GetAllAsync()).ToList();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Remove(FavoriteEvent evt)
+    {
+        await FavoritesStore.RemoveAsync(evt.Id);
+        SavedEvents = (await FavoritesStore.GetAllAsync()).ToList();
+        StateHasChanged();
+    }
+
+    private static string FormatDateTime(string? localDate, string? localTime)
+    {
+        if (string.IsNullOrWhiteSpace(localDate))
+        {
+            return "Data da confermare";
+        }
+
+        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
+    }
+
+    private static string FormatVenueLine(string? venue, string? city)
+    {
+        var v = (venue ?? "").Trim();
+        var c = (city ?? "").Trim();
+
+        if (v.Length == 0 && c.Length == 0) return "Da confermare";
+        if (v.Length == 0) return c;
+        if (c.Length == 0) return v;
+        return $"{v} · {c}";
     }
 }
