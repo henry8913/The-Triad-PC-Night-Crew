@@ -8,8 +8,13 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    ZoneInfo = None
 
 
 def load_dotenv_if_present(*paths: str) -> None:
@@ -79,7 +84,13 @@ def _ticketmaster_base_url() -> str:
     return (os.environ.get("TICKETMASTER_BASE_URL") or "https://app.ticketmaster.com/discovery/v2/").rstrip("/") + "/"
 
 
-def ticketmaster_search_events(keyword: str | None, city: str | None, size: int = 8) -> tuple[list[dict], str | None]:
+def ticketmaster_search_events(
+    keyword: str | None,
+    city: str | None,
+    size: int = 8,
+    start_datetime_utc: str | None = None,
+    end_datetime_utc: str | None = None,
+) -> tuple[list[dict], str | None]:
     """
     Chiama Ticketmaster Discovery API e ritorna una lista "normalizzata" di eventi.
     Ritorna: (events, error_message)
@@ -99,6 +110,10 @@ def ticketmaster_search_events(keyword: str | None, city: str | None, size: int 
         params.append(("keyword", keyword.strip()))
     if city and city.strip():
         params.append(("city", city.strip()))
+    if start_datetime_utc and start_datetime_utc.strip():
+        params.append(("startDateTime", start_datetime_utc.strip()))
+    if end_datetime_utc and end_datetime_utc.strip():
+        params.append(("endDateTime", end_datetime_utc.strip()))
 
     url = _ticketmaster_base_url() + "events.json?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"Accept": "application/json"}, method="GET")
@@ -265,6 +280,144 @@ def infer_ticketmaster_filters(prompt: str) -> tuple[str | None, str | None]:
     return (keyword, city)
 
 
+def infer_when(prompt: str) -> str:
+    p = (prompt or "").strip().lower()
+    if not p:
+        return "all"
+    if "oggi" in p or "stasera" in p:
+        return "today"
+    if "weekend" in p:
+        return "weekend"
+    if "questa settimana" in p:
+        return "this_week"
+    if "prossima settimana" in p or "settimana prossima" in p:
+        return "next_week"
+    return "all"
+
+
+def build_date_range_utc_iso(when: str) -> tuple[str | None, str | None]:
+    if when == "all":
+        return (None, None)
+
+    if ZoneInfo is None:
+        return (None, None)
+
+    tz = ZoneInfo("Europe/Rome")
+    now = datetime.now(tz)
+    today = now.date()
+
+    if when == "today":
+        start_local = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=tz)
+        end_local = start_local + timedelta(days=1) - timedelta(seconds=1)
+    elif when == "this_week":
+        start_local = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=tz)
+        end_local = start_local + timedelta(days=7) - timedelta(seconds=1)
+    elif when == "next_week":
+        start_local = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=tz) + timedelta(days=7)
+        end_local = start_local + timedelta(days=7) - timedelta(seconds=1)
+    elif when == "weekend":
+        weekday = today.weekday()
+        days_until_sat = (5 - weekday) % 7
+        start_date = today + timedelta(days=days_until_sat)
+        start_local = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=tz)
+        end_local = start_local + timedelta(days=2) - timedelta(seconds=1)
+    else:
+        return (None, None)
+
+    start_utc = start_local.astimezone(ZoneInfo("UTC"))
+    end_utc = end_local.astimezone(ZoneInfo("UTC"))
+    return (start_utc.isoformat().replace("+00:00", "Z"), end_utc.isoformat().replace("+00:00", "Z"))
+
+
+def infer_limit(prompt: str) -> int:
+    p = (prompt or "").lower()
+    m = re.search(r"\b(\d{1,2})\b", p)
+    if m:
+        try:
+            n = int(m.group(1))
+            return max(1, min(n, 5))
+        except Exception:
+            pass
+    if "qualche" in p or "alcuni" in p:
+        return 4
+    return 3
+
+
+def build_compact_events_reply(events: list[dict], fallback_city: str | None) -> str:
+    if not events:
+        if fallback_city:
+            return "Nessun evento trovato. Prova a cambiare keyword o città."
+        return "Nessun evento trovato. Indicami una città o una keyword (es. “Milano techno”)."
+
+    lines: list[str] = []
+    for e in events:
+        name = (e.get("name") or "Evento").strip()
+        local_date = (e.get("localDate") or "").strip()
+        local_time = (e.get("localTime") or "").strip()
+        dt = local_date if not local_time else f"{local_date} {local_time}"
+        venue = (e.get("venue") or "").strip()
+        city = (e.get("city") or "").strip()
+        internal_url = (e.get("internalUrl") or "").strip()
+
+        parts = [name]
+        if dt:
+            parts.append(dt)
+        if venue:
+            parts.append(venue)
+        if city:
+            parts.append(city)
+        if internal_url:
+            parts.append(internal_url)
+        lines.append(" • " + " — ".join(parts))
+
+    return "\n".join(lines)
+
+
+def is_event_intent(prompt: str) -> bool:
+    p = (prompt or "").strip().lower()
+    if not p:
+        return False
+
+    event_keywords = (
+        "evento",
+        "eventi",
+        "festa",
+        "feste",
+        "serata",
+        "serate",
+        "concerto",
+        "concerti",
+        "live",
+        "club",
+        "party",
+    )
+    if any(k in p for k in event_keywords):
+        return True
+
+    _, city = infer_ticketmaster_filters(p)
+    if city:
+        return True
+
+    time_keywords = (
+        "stasera",
+        "oggi",
+        "weekend",
+        "questa settimana",
+        "prossima settimana",
+        "settimana prossima",
+    )
+    prompt_keywords = (
+        "cosa c'è",
+        "che c'è",
+        "cosa c’e",
+        "che c’e",
+        "cosa fare",
+        "che faccio",
+        "che si fa",
+    )
+    return any(k in p for k in prompt_keywords) and any(k in p for k in time_keywords)
+
+
 def build_antihallucination_system(events: list[dict]) -> str:
     """
     Regole di comportamento + contesto "grounded" (eventi reali).
@@ -419,29 +572,86 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            keyword, city = infer_ticketmaster_filters(prompt.strip())
-            events, tm_error = ticketmaster_search_events(keyword=keyword, city=city, size=8)
-            if not events and city and keyword:
-                events2, tm_error2 = ticketmaster_search_events(keyword=None, city=city, size=8)
-                if events2:
-                    events = events2
-                    tm_error = tm_error2
+            p = prompt.strip()
 
-            anti = build_antihallucination_system(events)
-            merged_system = anti if not system else (system.strip() + "\n\n" + anti)
+            if is_event_intent(p):
+                if not _ticketmaster_api_key():
+                    self._send_json(
+                        200,
+                        {
+                            "reply": "Per consigliarti eventi devo avere Ticketmaster configurato. Imposta TICKETMASTER_API_KEY e riprova.",
+                            "model": None,
+                            "error": "TICKETMASTER_API_KEY mancante",
+                            "events": [],
+                        },
+                    )
+                    return
 
-            data = openrouter_chat(prompt.strip(), merged_system, history if isinstance(history, list) else None, temperature, max_tokens)
+                keyword, city = infer_ticketmaster_filters(p)
+                when = infer_when(p)
+                start_utc, end_utc = build_date_range_utc_iso(when)
+                limit = infer_limit(p)
+
+                events, tm_error = ticketmaster_search_events(
+                    keyword=keyword,
+                    city=city,
+                    size=max(12, limit),
+                    start_datetime_utc=start_utc,
+                    end_datetime_utc=end_utc,
+                )
+
+                if not events and city and keyword:
+                    events2, tm_error2 = ticketmaster_search_events(
+                        keyword=None,
+                        city=city,
+                        size=max(12, limit),
+                        start_datetime_utc=start_utc,
+                        end_datetime_utc=end_utc,
+                    )
+                    if events2:
+                        events = events2
+                        tm_error = tm_error2
+
+                chosen = events[:limit]
+                if tm_error:
+                    self._send_json(
+                        200,
+                        {
+                            "reply": "Non riesco a recuperare gli eventi in questo momento. Riprova tra poco.",
+                            "model": None,
+                            "error": tm_error,
+                            "events": chosen,
+                        },
+                    )
+                    return
+
+                if not chosen:
+                    self._send_json(
+                        200,
+                        {
+                            "reply": build_compact_events_reply([], city),
+                            "model": None,
+                            "error": None,
+                            "events": [],
+                        },
+                    )
+                    return
+
+                city_label = f" a {city}" if city else ""
+                intro = f"Ecco {len(chosen)} eventi{city_label}:"
+                self._send_json(200, {"reply": intro, "model": None, "error": None, "events": chosen})
+                return
+
+            base_system = "Sei GaboAI, assistente Night Crew. Rispondi sempre in italiano. Stile: breve e sintetico (max 2 frasi). Se l'utente chiede eventi, chiedi città e mood oppure una keyword."
+            merged_system = base_system if not system else (system.strip() + "\n\n" + base_system)
+            data = openrouter_chat(p, merged_system, history if isinstance(history, list) else None, temperature, max_tokens)
 
             reply = data.get("reply")
             ai_error = data.get("error")
             if not reply or not isinstance(reply, str) or not reply.strip():
-                reply = build_fallback_reply(prompt.strip(), events, tm_error, ai_error)
+                reply = "Ciao! Dimmi città e mood (es. “Milano techno”) e ti propongo qualche evento."
 
-            payload = {"reply": reply, "model": data.get("model"), "error": ai_error}
-            payload["events"] = events
-            if tm_error:
-                payload["ticketmaster_error"] = tm_error
-            self._send_json(200, payload)
+            self._send_json(200, {"reply": reply, "model": data.get("model"), "error": ai_error, "events": []})
         except Exception as e:
             self._send_json(500, {"reply": None, "model": None, "error": str(e)})
 
@@ -472,9 +682,10 @@ def main() -> int:
 
     if args.serve:
         missing = []
-        for k in ("OPENROUTER_API_KEY",):
-            if not os.environ.get(k):
-                missing.append(k)
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            missing.append("OPENROUTER_API_KEY")
+        if not _ticketmaster_api_key():
+            missing.append("TICKETMASTER_API_KEY")
         if missing:
             sys.stderr.write("Variabili d'ambiente mancanti: " + ", ".join(missing) + "\n")
             return 2

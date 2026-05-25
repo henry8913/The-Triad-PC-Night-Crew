@@ -1,4 +1,5 @@
 @rendermode InteractiveServer
+@inject IJSRuntime JS
 
 <button class="nc-chat-fab" type="button" @onclick="Toggle" aria-label="Apri chat con Gabo">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -19,11 +20,39 @@
         <button class="nc-chat-close" type="button" @onclick="Close" aria-label="Chiudi chat">✕</button>
     </div>
 
-    <div class="nc-chat-messages">
-        @foreach (var m in messages)
+    <div class="nc-chat-messages" id="nc-chat-messages">
+        @for (var i = 0; i < messages.Count; i++)
         {
-            <div class="nc-chat-msg @(m.Role == ChatRole.User ? "is-user" : "is-bot")">
-                <div class="nc-chat-bubble">@m.Text</div>
+            var m = messages[i];
+            <div id="@($"nc-chat-msg-{i}")" class="nc-chat-msg @(m.Role == ChatRole.User ? "is-user" : "is-bot")">
+                <div class="nc-chat-bubble">
+                    <div>@m.Text</div>
+                    @if (m.Role == ChatRole.Bot && m.Events.Count > 0)
+                    {
+                        <div class="mt-3 d-grid gap-2">
+                            @foreach (var e in m.Events)
+                            {
+                                <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);">
+                                    <div class="fw-semibold" style="color: var(--nc-text);">@e.Name</div>
+                                    @if (!string.IsNullOrWhiteSpace(e.Venue))
+                                    {
+                                        <div class="nc-muted">@e.Venue</div>
+                                    }
+                                    <div class="nc-muted">@FormatDateTime(e.LocalDate, e.LocalTime)</div>
+                                    @if (!string.IsNullOrWhiteSpace(e.InternalUrl))
+                                    {
+                                        <div class="mt-2">
+                                            <a class="nc-chip nc-chip-strong text-decoration-none" href="@e.InternalUrl"
+                                               @onclick="() => OpenEvent(e.InternalUrl!)"
+                                               @onclick:preventDefault="true"
+                                               @onclick:stopPropagation="true">LINK</a>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
             </div>
         }
     </div>
@@ -45,13 +74,43 @@
     private bool isOpen;
     private string draft = "";
     private bool isSending;
+    private bool scrollPending;
+    private string? scrollToMessageId;
     private readonly List<ChatMessage> messages =
     [
-        new(ChatRole.Bot, "Ciao! Scegli città e mood: ti trovo gli eventi di stasera. Prova “Milano techno” o “Roma jazz”.")
+        new(ChatRole.Bot, "Ciao! Scegli città e mood: ti trovo gli eventi di stasera. Prova “Milano techno” o “Roma jazz”.", [])
     ];
 
-    private void Toggle() => isOpen = !isOpen;
+    private void Toggle()
+    {
+        isOpen = !isOpen;
+    }
+
     private void Close() => isOpen = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!scrollPending)
+        {
+            return;
+        }
+
+        scrollPending = false;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(scrollToMessageId))
+            {
+                await JS.InvokeVoidAsync("ncChat.scrollToMessageStart", "nc-chat-messages", scrollToMessageId);
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            scrollToMessageId = null;
+        }
+    }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
@@ -69,13 +128,14 @@
             return;
         }
 
-        messages.Add(new(ChatRole.User, text));
+        messages.Add(new(ChatRole.User, text, []));
         draft = "";
         isOpen = true;
         isSending = true;
 
-        var typing = new ChatMessage(ChatRole.Bot, "…");
-        messages.Add(typing);
+        var typingIndex = messages.Count;
+        messages.Add(new(ChatRole.Bot, "…", []));
+        RequestScrollToMessage($"nc-chat-msg-{typingIndex}");
         StateHasChanged();
 
         try
@@ -97,16 +157,15 @@
             using var resp = await http.PostAsJsonAsync("/chat", payload);
             var body = await resp.Content.ReadAsStringAsync();
 
-            var replyText = TryExtractReplyText(body) ??
+            var parsed = ParseChatResponse(body);
+            var replyText = parsed.Reply ??
                             (resp.IsSuccessStatusCode ? body : $"Errore chat ({(int)resp.StatusCode}): {body}");
 
-            messages.Remove(typing);
-            messages.Add(new(ChatRole.Bot, replyText));
+            messages[typingIndex] = new(ChatRole.Bot, replyText, parsed.Events);
         }
         catch (Exception ex)
         {
-            messages.Remove(typing);
-            messages.Add(new(ChatRole.Bot, $"Errore chat: {ex.Message}"));
+            messages[typingIndex] = new(ChatRole.Bot, $"Errore chat: {ex.Message}", []);
         }
         finally
         {
@@ -115,11 +174,11 @@
         }
     }
 
-    private static string? TryExtractReplyText(string body)
+    private static ParsedChatResponse ParseChatResponse(string body)
     {
         if (string.IsNullOrWhiteSpace(body))
         {
-            return null;
+            return new ParsedChatResponse(null, []);
         }
 
         try
@@ -129,25 +188,55 @@
 
             if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
             {
-                if (root.TryGetProperty("reply", out var reply) && reply.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return reply.GetString();
+                var replyText =
+                    root.TryGetProperty("reply", out var reply) && reply.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? reply.GetString()
+                        : null;
 
-                if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return detail.GetString();
+                var events = new List<ChatEvent>();
+                if (root.TryGetProperty("events", out var evs) && evs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var e in evs.EnumerateArray())
+                    {
+                        if (e.ValueKind != System.Text.Json.JsonValueKind.Object)
+                        {
+                            continue;
+                        }
 
-                if (root.TryGetProperty("error", out var err) && err.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return err.GetString();
+                        var name = e.TryGetProperty("name", out var n) && n.ValueKind == System.Text.Json.JsonValueKind.String ? n.GetString() : null;
+                        if (string.IsNullOrWhiteSpace(name))
+                        {
+                            continue;
+                        }
 
-                if (root.TryGetProperty("text", out var text) && text.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return text.GetString();
+                        var venue = e.TryGetProperty("venue", out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+                        var localDate = e.TryGetProperty("localDate", out var d) && d.ValueKind == System.Text.Json.JsonValueKind.String ? d.GetString() : null;
+                        var localTime = e.TryGetProperty("localTime", out var t) && t.ValueKind == System.Text.Json.JsonValueKind.String ? t.GetString() : null;
+                        var internalUrl = e.TryGetProperty("internalUrl", out var u) && u.ValueKind == System.Text.Json.JsonValueKind.String ? u.GetString() : null;
+                        events.Add(new ChatEvent(name, venue, localDate, localTime, internalUrl));
+                    }
+                }
 
-                if (root.TryGetProperty("content", out var content) && content.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return content.GetString();
+                if (string.IsNullOrWhiteSpace(replyText))
+                {
+                    if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == System.Text.Json.JsonValueKind.String)
+                        replyText = detail.GetString();
 
-                if (root.TryGetProperty("title", out var title) && title.ValueKind == System.Text.Json.JsonValueKind.String)
-                    return title.GetString();
+                    if (root.TryGetProperty("error", out var err) && err.ValueKind == System.Text.Json.JsonValueKind.String)
+                        replyText = err.GetString();
 
-                if (root.TryGetProperty("choices", out var choices) &&
+                    if (root.TryGetProperty("text", out var text) && text.ValueKind == System.Text.Json.JsonValueKind.String)
+                        replyText = text.GetString();
+
+                    if (root.TryGetProperty("content", out var content) && content.ValueKind == System.Text.Json.JsonValueKind.String)
+                        replyText = content.GetString();
+
+                    if (root.TryGetProperty("title", out var title) && title.ValueKind == System.Text.Json.JsonValueKind.String)
+                        replyText = title.GetString();
+                }
+
+                if (string.IsNullOrWhiteSpace(replyText) &&
+                    root.TryGetProperty("choices", out var choices) &&
                     choices.ValueKind == System.Text.Json.JsonValueKind.Array &&
                     choices.GetArrayLength() > 0)
                 {
@@ -157,16 +246,41 @@
                         msg.TryGetProperty("content", out var c) &&
                         c.ValueKind == System.Text.Json.JsonValueKind.String)
                     {
-                        return c.GetString();
+                        replyText = c.GetString();
                     }
                 }
+
+                return new ParsedChatResponse(replyText, events);
             }
         }
         catch
         {
         }
 
-        return null;
+        return new ParsedChatResponse(null, []);
+    }
+
+    private static string FormatDateTime(string? localDate, string? localTime)
+    {
+        if (string.IsNullOrWhiteSpace(localDate))
+        {
+            return "Data da confermare";
+        }
+
+        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
+    }
+
+    private void OpenEvent(string url)
+    {
+        isOpen = true;
+        Nav.NavigateTo(url);
+        StateHasChanged();
+    }
+
+    private void RequestScrollToMessage(string messageId)
+    {
+        scrollPending = true;
+        scrollToMessageId = messageId;
     }
 
     private enum ChatRole
@@ -175,5 +289,9 @@
         Bot
     }
 
-    private sealed record ChatMessage(ChatRole Role, string Text);
+    private sealed record ChatEvent(string Name, string? Venue, string? LocalDate, string? LocalTime, string? InternalUrl);
+
+    private sealed record ChatMessage(ChatRole Role, string Text, IReadOnlyList<ChatEvent> Events);
+
+    private sealed record ParsedChatResponse(string? Reply, IReadOnlyList<ChatEvent> Events);
 }

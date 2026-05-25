@@ -256,7 +256,7 @@ a:hover {
     background: linear-gradient(180deg, var(--nc-accent) 0%, var(--nc-accent-2) 100%);
     border: 1px solid rgba(255, 77, 0, 0.55);
     box-shadow: 0 18px 40px rgba(255, 77, 0, 0.20), 0 0 0 0.15rem rgba(255, 77, 0, 0.10) inset;
-    z-index: 80;
+    z-index: 1200;
     transition: transform 150ms ease, box-shadow 150ms ease;
     animation: nc-pulse 3s infinite;
 }
@@ -286,7 +286,7 @@ a:hover {
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 1.25rem;
     box-shadow: 0 26px 90px rgba(0, 0, 0, 0.62), 0 0 0 0.2rem rgba(255, 77, 0, 0.08);
-    z-index: 80;
+    z-index: 1200;
     backdrop-filter: blur(16px);
 }
 
@@ -337,6 +337,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
+    overflow-anchor: none;
 }
 
 .nc-chat-msg {
