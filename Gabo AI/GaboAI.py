@@ -392,6 +392,14 @@ def is_event_intent(prompt: str) -> bool:
         "live",
         "club",
         "party",
+        "after",
+        "afterparty",
+        "after party",
+        "dj set",
+        "djset",
+        "lineup",
+        "line-up",
+        "cassa dritta",
     )
     if any(k in p for k in event_keywords):
         return True
@@ -539,9 +547,11 @@ def get_brand_system_prompt() -> str:
             "Contesto brand (dal sito):",
             "- Siamo nati a Piacenza (PC). Crew di amici e tecnologia al servizio della notte.",
             "- Problema: 'Che si fa stasera?' frammentato tra chat/storie/siti non aggiornati.",
-            "- Missione: (1) Centralizzare locali e mood in un unico posto (2) Innovare con AI (3) Mappare l'Italia intera.",
-            "- Per i locali: portiamo l'evento a chi cerca quel mood, senza algoritmi ciechi.",
+            "- Missione: (1) Centralizzare locali e vibe/serate in un unico posto (2) Innovare con AI (3) Mappare l'Italia intera.",
+            "- Per i locali: portiamo l'evento a chi cerca quella vibe, senza algoritmi ciechi.",
+            "- Linguaggio della notte: capisci richieste tipo 'after', 'cassa dritta', 'serata pettinata', 'bere bene', 'jazz intimo'.",
             "Regole:",
+            "- Evita risposte da chatbot tipo 'non ho capito': se serve, fai una domanda secca e utile.",
             "- Risposte brevi e utili; fai 1 domanda di chiarimento solo se serve davvero.",
             "- Se l'utente chiede eventi, usa solo eventi reali (Ticketmaster) e rimanda ai link interni /events/{slug}.",
             "- Evita URL lunghi nel testo: se presenti eventi, l'interfaccia mostra già il pulsante LINK.",
@@ -561,7 +571,7 @@ def openrouter_route_intent(prompt: str, history: list[dict] | None) -> dict | N
             "- Se è una domanda generica (es. 'cosa posso bere stasera?'), intent=chat.",
             "- when: deduci da oggi/stasera/weekend/questa settimana/prossima settimana, altrimenti all.",
             "- city: se presente (Milano, Roma, Bologna, Torino, Napoli, Firenze, Venezia, Genova, Bari, Palermo, Catania, Verona, Padova, Parma, Piacenza).",
-            "- keyword: solo se c'è un mood/genre chiaro (es. techno, jazz).",
+            "- keyword: solo se c'è uno stile/genre chiaro (es. techno, jazz).",
             "- limit: 3 default.",
             "- confidence: quanto sei sicuro della scelta intent (0=incerto, 1=molto sicuro).",
             "Esempi (usa questi come guida):",
@@ -629,7 +639,7 @@ def openrouter_select_event_ids(prompt: str, events: list[dict], limit: int) -> 
             "Usa SOLO la lista EVENTI fornita, non inventare nulla.",
             "Rispondi SOLO con JSON: {\"ids\":[...]} con al massimo N id.",
             f"N={int(limit)}.",
-            "Preferisci eventi coerenti con mood/keyword e città/periodo se citati.",
+            "Preferisci eventi coerenti con vibe/keyword e città/periodo se citati.",
             "EVENTI:",
             json.dumps(compact, ensure_ascii=False),
         ]
@@ -739,9 +749,9 @@ class Handler(BaseHTTPRequestHandler):
                         "Obiettivo: scrivi un messaggio di benvenuto (mini presentazione).",
                         "Vincoli:",
                         "- max 2 frasi + 1 domanda finale (in totale max 3 frasi).",
-                        "- spiega che sei GaboAI e che puoi: (1) dare consigli su serate/locali/mood (2) trovare eventi reali e aprirli con LINK.",
+                        "- spiega che sei GaboAI e che puoi: (1) dare consigli su serate/locali/vibe (2) trovare eventi reali e aprirli con LINK.",
                         "- usa tono Night Crew: neon arancio, zero sbatti.",
-                        "- includi un esempio semplice tra virgolette con città e tempo (es. “Milano questo weekend”). Mood opzionale.",
+                        "- includi un esempio semplice tra virgolette con città e tempo (es. “Milano questo weekend”).",
                         f"Contesto pagina: {p2}",
                     ]
                 )
@@ -891,7 +901,7 @@ class Handler(BaseHTTPRequestHandler):
             reply = data.get("reply")
             ai_error = data.get("error")
             if not isinstance(reply, str) or not reply.strip():
-                reply = "Dimmi cosa cerchi (mood, città, con chi esci) e ti do un consiglio zero sbatti."
+                reply = "Dimmi città e quando (es. “Milano questo weekend”) oppure descrivimi la vibe (after, bere bene, jazz intimo) e ti consiglio zero sbatti."
 
             self._send_json(200, {"reply": reply.strip(), "model": data.get("model"), "error": ai_error, "events": []})
         except Exception as e:
