@@ -76,14 +76,17 @@
     private bool isSending;
     private bool scrollPending;
     private string? scrollToMessageId;
-    private readonly List<ChatMessage> messages =
-    [
-        new(ChatRole.Bot, "Ciao! Scegli città e mood: ti trovo gli eventi di stasera. Prova “Milano techno” o “Roma jazz”.", [])
-    ];
+    private bool hasGreeted;
+    private readonly List<ChatMessage> messages = [];
+    private const int MaxContextMessages = 10;
 
-    private void Toggle()
+    private async Task Toggle()
     {
         isOpen = !isOpen;
+        if (isOpen)
+        {
+            await EnsureGreetingAsync();
+        }
     }
 
     private void Close() => isOpen = false;
@@ -128,6 +131,11 @@
             return;
         }
 
+        if (!hasGreeted)
+        {
+            hasGreeted = true;
+        }
+
         messages.Add(new(ChatRole.User, text, []));
         draft = "";
         isOpen = true;
@@ -144,6 +152,7 @@
             {
                 messages = messages
                     .Where(m => m.Text != "…")
+                    .TakeLast(MaxContextMessages)
                     .Select(m => new
                     {
                         role = m.Role == ChatRole.User ? "user" : "assistant",
@@ -151,6 +160,51 @@
                     })
             };
 
+            var http = HttpClientFactory.CreateClient();
+            http.BaseAddress = new Uri(Nav.BaseUri);
+
+            using var resp = await http.PostAsJsonAsync("/chat", payload);
+            var body = await resp.Content.ReadAsStringAsync();
+
+            var parsed = ParseChatResponse(body);
+            var replyText = parsed.Reply ??
+                            (resp.IsSuccessStatusCode ? body : $"Errore chat ({(int)resp.StatusCode}): {body}");
+
+            messages[typingIndex] = new(ChatRole.Bot, replyText, parsed.Events);
+        }
+        catch (Exception ex)
+        {
+            messages[typingIndex] = new(ChatRole.Bot, $"Errore chat: {ex.Message}", []);
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EnsureGreetingAsync()
+    {
+        if (hasGreeted)
+        {
+            return;
+        }
+
+        hasGreeted = true;
+        isSending = true;
+
+        var typingIndex = messages.Count;
+        messages.Add(new(ChatRole.Bot, "…", []));
+        RequestScrollToMessage($"nc-chat-msg-{typingIndex}");
+        StateHasChanged();
+
+        try
+        {
+            var uri = new Uri(Nav.Uri);
+            var path = uri.PathAndQuery;
+            var greetingPrompt = "__NC_GREETING__ " + path;
+
+            var payload = new { prompt = greetingPrompt };
             var http = HttpClientFactory.CreateClient();
             http.BaseAddress = new Uri(Nav.BaseUri);
 

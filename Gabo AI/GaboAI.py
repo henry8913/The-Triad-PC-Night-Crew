@@ -288,6 +288,8 @@ def infer_when(prompt: str) -> str:
         return "today"
     if "weekend" in p:
         return "weekend"
+    if "prossimi giorni" in p or "nei prossimi giorni" in p:
+        return "this_week"
     if "questa settimana" in p:
         return "this_week"
     if "prossima settimana" in p or "settimana prossima" in p:
@@ -510,6 +512,151 @@ def openrouter_chat(prompt: str, system: str | None, history: list[dict] | None,
 
     return {"reply": reply, "model": data.get("model") or model, "error": None}
 
+
+def _extract_first_json_object(text: str) -> dict | None:
+    if not text or not isinstance(text, str):
+        return None
+    s = text.strip()
+    if not s:
+        return None
+    start = s.find("{")
+    end = s.rfind("}")
+    if start < 0 or end < 0 or end <= start:
+        return None
+    candidate = s[start : end + 1]
+    try:
+        parsed = json.loads(candidate)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
+
+
+def get_brand_system_prompt() -> str:
+    return "\n".join(
+        [
+            "Sei GaboAI, assistente ufficiale di The Triad PC — Night Crew.",
+            "Tono: italiano, diretto, cyberpunk elegante, 'neon arancio, zero sbatti'.",
+            "Contesto brand (dal sito):",
+            "- Siamo nati a Piacenza (PC). Crew di amici e tecnologia al servizio della notte.",
+            "- Problema: 'Che si fa stasera?' frammentato tra chat/storie/siti non aggiornati.",
+            "- Missione: (1) Centralizzare locali e mood in un unico posto (2) Innovare con AI (3) Mappare l'Italia intera.",
+            "- Per i locali: portiamo l'evento a chi cerca quel mood, senza algoritmi ciechi.",
+            "Regole:",
+            "- Risposte brevi e utili; fai 1 domanda di chiarimento solo se serve davvero.",
+            "- Se l'utente chiede eventi, usa solo eventi reali (Ticketmaster) e rimanda ai link interni /events/{slug}.",
+            "- Evita URL lunghi nel testo: se presenti eventi, l'interfaccia mostra già il pulsante LINK.",
+            "- Consigli su serate/dating: generali e rispettosi; niente contenuti espliciti.",
+        ]
+    )
+
+
+def openrouter_route_intent(prompt: str, history: list[dict] | None) -> dict | None:
+    system = "\n".join(
+        [
+            "Decidi se l'utente sta chiedendo eventi o sta facendo conversazione/consigli generici.",
+            "Rispondi SOLO con JSON, senza testo extra.",
+            'Schema: {"intent":"chat"|"events","confidence":0..1,"city":string|null,"keyword":string|null,"when":"today"|"weekend"|"this_week"|"next_week"|"all","limit":1..5}.',
+            "Regole:",
+            "- intent=events solo se l'utente chiede esplicitamente eventi/serate/feste/concerto/live o 'cosa c'è stasera a X'.",
+            "- Se è una domanda generica (es. 'cosa posso bere stasera?'), intent=chat.",
+            "- when: deduci da oggi/stasera/weekend/questa settimana/prossima settimana, altrimenti all.",
+            "- city: se presente (Milano, Roma, Bologna, Torino, Napoli, Firenze, Venezia, Genova, Bari, Palermo, Catania, Verona, Padova, Parma, Piacenza).",
+            "- keyword: solo se c'è un mood/genre chiaro (es. techno, jazz).",
+            "- limit: 3 default.",
+            "- confidence: quanto sei sicuro della scelta intent (0=incerto, 1=molto sicuro).",
+            "Esempi (usa questi come guida):",
+            '- "feste a milano?" => intent=events, city="Milano"',
+            '- "stasera a Roma che si fa?" => intent=events, city="Roma", when="today"',
+            '- "cosa c’è questo weekend a Roma?" => intent=events, city="Roma", when="weekend"',
+            '- "Milano questo weekend" => intent=events, city="Milano", when="weekend"',
+            '- "Roma stasera" => intent=events, city="Roma", when="today"',
+            '- "Bologna nei prossimi giorni" => intent=events, city="Bologna", when="this_week"',
+            '- "Torino prossima settimana" => intent=events, city="Torino", when="next_week"',
+            '- "eventi di oggi a Bologna" => intent=events, city="Bologna", when="today"',
+            '- "concerti questa settimana a Torino" => intent=events, city="Torino", when="this_week"',
+            '- "settimana prossima a Milano" => intent=events, city="Milano", when="next_week"',
+            '- "techno a Milano sabato" => intent=events, city="Milano", keyword="techno", when="weekend"',
+            '- "jazz a Roma" => intent=events, city="Roma", keyword="jazz"',
+            '- "serata live a Piacenza" => intent=events, city="Piacenza", keyword="live"',
+            '- "voglio qualcosa di tranquillo a Firenze" => intent=chat',
+            '- "bar carino per primo appuntamento a Milano" => intent=chat',
+            '- "dove porto una ragazza a Bologna?" => intent=chat',
+            '- "dove andiamo con amici a Napoli?" => intent=chat',
+            '- "consigliami una serata romantica" => intent=chat',
+            '- "cosa mi metto per un concerto?" => intent=chat',
+            '- "cosa posso bere stasera?" => intent=chat',
+            '- "idee per pre-serata a casa" => intent=chat',
+            '- "mi annoio, che faccio stasera?" => intent=chat',
+            '- "che locali consigli in generale?" => intent=chat',
+            '- "mi trovi 5 eventi a Milano?" => intent=events, city="Milano", limit=5',
+            '- "dammi 2 eventi jazz a Roma" => intent=events, city="Roma", keyword="jazz", limit=2',
+            '- "non ho la macchina, consigli?" => intent=chat',
+            '- "zona Navigli cosa c’è stasera?" => intent=events, city="Milano", when="today"',
+            '- "evento per portare una ragazza, qualcosa di elegante" => intent=chat',
+            '- "cerco un after, roba techno" => intent=events, keyword="techno"',
+        ]
+    )
+    data = openrouter_chat(prompt, system, history, temperature=0.0, max_tokens=180)
+    reply = data.get("reply")
+    if not isinstance(reply, str):
+        return None
+    parsed = _extract_first_json_object(reply)
+    if not parsed:
+        return None
+    return parsed
+
+
+def openrouter_select_event_ids(prompt: str, events: list[dict], limit: int) -> list[str]:
+    if not events:
+        return []
+    compact = []
+    for e in events[:12]:
+        compact.append(
+            {
+                "id": e.get("id"),
+                "name": e.get("name"),
+                "city": e.get("city"),
+                "venue": e.get("venue"),
+                "localDate": e.get("localDate"),
+                "localTime": e.get("localTime"),
+                "internalUrl": e.get("internalUrl"),
+            }
+        )
+
+    system = "\n".join(
+        [
+            "Seleziona i migliori eventi per la richiesta utente.",
+            "Usa SOLO la lista EVENTI fornita, non inventare nulla.",
+            "Rispondi SOLO con JSON: {\"ids\":[...]} con al massimo N id.",
+            f"N={int(limit)}.",
+            "Preferisci eventi coerenti con mood/keyword e città/periodo se citati.",
+            "EVENTI:",
+            json.dumps(compact, ensure_ascii=False),
+        ]
+    )
+    data = openrouter_chat(prompt, system, history=None, temperature=0.0, max_tokens=220)
+    reply = data.get("reply")
+    if not isinstance(reply, str):
+        return []
+    parsed = _extract_first_json_object(reply)
+    ids = parsed.get("ids") if isinstance(parsed, dict) else None
+    if not isinstance(ids, list):
+        return []
+    out: list[str] = []
+    for x in ids:
+        if isinstance(x, str) and x.strip():
+            out.append(x.strip())
+    return out[: int(limit)]
+
+
+def openrouter_brief_message(user_prompt: str, facts: list[str], history: list[dict] | None) -> str | None:
+    base = get_brand_system_prompt()
+    extra = "\n".join(["Fatti (affidabili):"] + [f"- {x}" for x in facts])
+    system = base + "\n\n" + extra + "\n\n" + "Rispondi in modo breve e chiaro (max 2 frasi). Non includere URL."
+    data = openrouter_chat(user_prompt, system, history, temperature=0.2, max_tokens=120)
+    reply = data.get("reply")
+    return reply.strip() if isinstance(reply, str) and reply.strip() else None
+
 def build_fallback_reply(prompt: str, events: list[dict], tm_error: str | None, ai_error: str | None) -> str:
     if tm_error:
         return "In questo momento non riesco a recuperare gli eventi da Ticketmaster. Riprova tra poco o cambia città/keyword."
@@ -573,29 +720,111 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             p = prompt.strip()
+            if not os.environ.get("OPENROUTER_API_KEY"):
+                self._send_json(
+                    200,
+                    {
+                        "reply": "Configurazione mancante: imposta OPENROUTER_API_KEY e riprova.",
+                        "model": None,
+                        "error": "OPENROUTER_API_KEY mancante",
+                        "events": [],
+                    },
+                )
+                return
 
-            if is_event_intent(p):
+            if p.startswith("__NC_GREETING__"):
+                p2 = p.replace("__NC_GREETING__", "", 1).strip()
+                sys_prompt = get_brand_system_prompt() + "\n\n" + "\n".join(
+                    [
+                        "Obiettivo: scrivi un messaggio di benvenuto (mini presentazione).",
+                        "Vincoli:",
+                        "- max 2 frasi + 1 domanda finale (in totale max 3 frasi).",
+                        "- spiega che sei GaboAI e che puoi: (1) dare consigli su serate/locali/mood (2) trovare eventi reali e aprirli con LINK.",
+                        "- usa tono Night Crew: neon arancio, zero sbatti.",
+                        "- includi un esempio semplice tra virgolette con città e tempo (es. “Milano questo weekend”). Mood opzionale.",
+                        f"Contesto pagina: {p2}",
+                    ]
+                )
+                data = openrouter_chat(p2 or "Benvenuto", sys_prompt, history if isinstance(history, list) else None, temperature=0.2, max_tokens=140)
+                reply = data.get("reply")
+                if not isinstance(reply, str) or not reply.strip():
+                    reply = "Sono GaboAI di Night Crew: ti aiuto a scegliere serate e a trovare eventi reali, zero sbatti. Dimmi città e quando (es. “Milano questo weekend”) oppure chiedimi un consiglio per stasera."
+                self._send_json(200, {"reply": reply.strip(), "model": data.get("model"), "error": data.get("error"), "events": []})
+                return
+
+            router = openrouter_route_intent(p, history if isinstance(history, list) else None)
+            router_intent = router.get("intent") if isinstance(router, dict) else None
+            router_conf = router.get("confidence") if isinstance(router, dict) else None
+            try:
+                router_conf_f = float(router_conf) if router_conf is not None else 0.0
+            except Exception:
+                router_conf_f = 0.0
+            router_conf_f = max(0.0, min(1.0, router_conf_f))
+
+            intent = router_intent if router_intent in ("chat", "events") else None
+            if intent is None:
+                intent = "events" if is_event_intent(p) else "chat"
+            elif router_conf_f < 0.55:
+                heuristic_events = is_event_intent(p)
+                if intent == "events" and not heuristic_events:
+                    intent = "chat"
+                elif intent == "chat" and heuristic_events:
+                    intent = "events"
+
+            if intent == "events":
                 if not _ticketmaster_api_key():
-                    self._send_json(
-                        200,
-                        {
-                            "reply": "Per consigliarti eventi devo avere Ticketmaster configurato. Imposta TICKETMASTER_API_KEY e riprova.",
-                            "model": None,
-                            "error": "TICKETMASTER_API_KEY mancante",
-                            "events": [],
-                        },
-                    )
+                    reply = openrouter_brief_message(
+                        p,
+                        ["Ticketmaster non è configurato sul server.", "Serve TICKETMASTER_API_KEY per cercare eventi pubblici."],
+                        history if isinstance(history, list) else None,
+                    ) or "Per consigliarti eventi devo avere Ticketmaster configurato. Imposta TICKETMASTER_API_KEY e riprova."
+                    self._send_json(200, {"reply": reply, "model": None, "error": "TICKETMASTER_API_KEY mancante", "events": []})
                     return
 
-                keyword, city = infer_ticketmaster_filters(p)
-                when = infer_when(p)
-                start_utc, end_utc = build_date_range_utc_iso(when)
-                limit = infer_limit(p)
+                keyword = (router.get("keyword") if isinstance(router, dict) else None) if isinstance(router, dict) else None
+                city = (router.get("city") if isinstance(router, dict) else None) if isinstance(router, dict) else None
+                when = (router.get("when") if isinstance(router, dict) else None) if isinstance(router, dict) else None
+                limit = (router.get("limit") if isinstance(router, dict) else None) if isinstance(router, dict) else None
 
+                if not isinstance(keyword, str):
+                    keyword = None
+                if keyword:
+                    keyword = keyword.strip() or None
+                if not isinstance(city, str):
+                    city = None
+                if city:
+                    city = city.strip() or None
+                if not isinstance(when, str) or when not in ("today", "weekend", "this_week", "next_week", "all"):
+                    when = infer_when(p)
+                try:
+                    limit = int(limit) if limit is not None else infer_limit(p)
+                except Exception:
+                    limit = infer_limit(p)
+                limit = max(1, min(int(limit), 5))
+
+                if not city and not keyword:
+                    if router_conf_f >= 0.65:
+                        facts = [
+                            "Per cercare eventi mi serve almeno una città e un periodo (oggi, weekend, prossimi giorni).",
+                            "Esempi: “Milano questo weekend”, “Roma stasera”, “Bologna nei prossimi giorni”.",
+                        ]
+                        fallback = "Dimmi una città e quando (es. “Milano questo weekend”) e ti propongo 3 eventi."
+                    else:
+                        facts = [
+                            "Posso darti consigli (serata, locali, vibe) oppure cercare eventi reali.",
+                            "Se vuoi eventi, dimmi almeno città e quando (es. “Milano questo weekend”).",
+                        ]
+                        fallback = "Vuoi un consiglio generale o vuoi che ti trovi eventi reali? Se vuoi eventi dimmi città e quando (es. “Milano questo weekend”)."
+
+                    reply = openrouter_brief_message(p, facts, history if isinstance(history, list) else None) or fallback
+                    self._send_json(200, {"reply": reply, "model": None, "error": None, "events": []})
+                    return
+
+                start_utc, end_utc = build_date_range_utc_iso(when)
                 events, tm_error = ticketmaster_search_events(
                     keyword=keyword,
                     city=city,
-                    size=max(12, limit),
+                    size=20,
                     start_datetime_utc=start_utc,
                     end_datetime_utc=end_utc,
                 )
@@ -604,7 +833,7 @@ class Handler(BaseHTTPRequestHandler):
                     events2, tm_error2 = ticketmaster_search_events(
                         keyword=None,
                         city=city,
-                        size=max(12, limit),
+                        size=20,
                         start_datetime_utc=start_utc,
                         end_datetime_utc=end_utc,
                     )
@@ -612,46 +841,59 @@ class Handler(BaseHTTPRequestHandler):
                         events = events2
                         tm_error = tm_error2
 
-                chosen = events[:limit]
                 if tm_error:
-                    self._send_json(
-                        200,
-                        {
-                            "reply": "Non riesco a recuperare gli eventi in questo momento. Riprova tra poco.",
-                            "model": None,
-                            "error": tm_error,
-                            "events": chosen,
-                        },
-                    )
+                    reply = openrouter_brief_message(
+                        p,
+                        ["Il servizio Ticketmaster ha risposto con un errore temporaneo.", "Puoi riprovare tra poco o cambiare città/keyword."],
+                        history if isinstance(history, list) else None,
+                    ) or "Non riesco a recuperare gli eventi in questo momento. Riprova tra poco."
+                    self._send_json(200, {"reply": reply, "model": None, "error": tm_error, "events": []})
                     return
 
-                if not chosen:
-                    self._send_json(
-                        200,
-                        {
-                            "reply": build_compact_events_reply([], city),
-                            "model": None,
-                            "error": None,
-                            "events": [],
-                        },
-                    )
+                if not events:
+                    reply = openrouter_brief_message(
+                        p,
+                        ["Nessun evento trovato con i filtri attuali."],
+                        history if isinstance(history, list) else None,
+                    ) or "Nessun evento trovato. Prova a cambiare keyword o città."
+                    self._send_json(200, {"reply": reply, "model": None, "error": None, "events": []})
                     return
 
-                city_label = f" a {city}" if city else ""
-                intro = f"Ecco {len(chosen)} eventi{city_label}:"
-                self._send_json(200, {"reply": intro, "model": None, "error": None, "events": chosen})
+                ids = openrouter_select_event_ids(p, events, limit)
+                chosen = [e for e in events if e.get("id") in set(ids)] if ids else events[:limit]
+                if len(chosen) > limit:
+                    chosen = chosen[:limit]
+
+                base = get_brand_system_prompt()
+                anti = build_antihallucination_system(chosen)
+                merged_system = base + "\n\n" + anti
+                data = openrouter_chat(
+                    p,
+                    merged_system,
+                    history if isinstance(history, list) else None,
+                    temperature=0.2,
+                    max_tokens=180,
+                )
+                reply = data.get("reply")
+                if not isinstance(reply, str) or not reply.strip():
+                    reply = openrouter_brief_message(
+                        p,
+                        [f"Ho trovato {len(chosen)} eventi reali coerenti con la richiesta."],
+                        history if isinstance(history, list) else None,
+                    ) or f"Ecco {len(chosen)} proposte. Clicca LINK per aprire l’evento."
+                self._send_json(200, {"reply": reply.strip(), "model": data.get("model"), "error": data.get("error"), "events": chosen})
                 return
 
-            base_system = "Sei GaboAI, assistente Night Crew. Rispondi sempre in italiano. Stile: breve e sintetico (max 2 frasi). Se l'utente chiede eventi, chiedi città e mood oppure una keyword."
-            merged_system = base_system if not system else (system.strip() + "\n\n" + base_system)
+            base = get_brand_system_prompt()
+            merged_system = base if not system else (system.strip() + "\n\n" + base)
             data = openrouter_chat(p, merged_system, history if isinstance(history, list) else None, temperature, max_tokens)
 
             reply = data.get("reply")
             ai_error = data.get("error")
-            if not reply or not isinstance(reply, str) or not reply.strip():
-                reply = "Ciao! Dimmi città e mood (es. “Milano techno”) e ti propongo qualche evento."
+            if not isinstance(reply, str) or not reply.strip():
+                reply = "Dimmi cosa cerchi (mood, città, con chi esci) e ti do un consiglio zero sbatti."
 
-            self._send_json(200, {"reply": reply, "model": data.get("model"), "error": ai_error, "events": []})
+            self._send_json(200, {"reply": reply.strip(), "model": data.get("model"), "error": ai_error, "events": []})
         except Exception as e:
             self._send_json(500, {"reply": None, "model": None, "error": str(e)})
 

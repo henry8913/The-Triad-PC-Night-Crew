@@ -13,7 +13,7 @@
             <div class="nc-hero-content">
                 <div class="nc-kicker mb-2">Esplora</div>
                 <h1 class="display-5 fw-semibold mb-2">Eventi in arrivo</h1>
-                <div class="nc-muted">Filtra per città, mood e data. I dati API arrivano qui.</div>
+                <div class="nc-muted">Filtra per città e data. I dati API arrivano qui.</div>
             </div>
         </div>
 
@@ -95,18 +95,6 @@
                     <div class="mb-3">
                         <label class="form-label mb-1 nc-muted">Keyword</label>
                         <input class="form-control nc-input" @bind="keyword" @bind:event="oninput" placeholder="techno, jazz, live..." />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label mb-1 nc-muted">Genere</label>
-                        <select class="form-select nc-select" @bind="classificationName">
-                            <option value="">Qualsiasi</option>
-                            <option value="Jazz">Jazz</option>
-                            <option value="Techno">Techno</option>
-                            <option value="Live">Live</option>
-                            <option value="Club">Club</option>
-                            <option value="Comedy">Comedy</option>
-                        </select>
                     </div>
 
                     <div class="mb-3">
@@ -213,7 +201,6 @@
 
     private string keyword = "";
     private string city = "Roma";
-    private string classificationName = "";
     private WhenFilter when = WhenFilter.All;
     private int radiusKm = 50;
     private bool nearMe;
@@ -240,7 +227,6 @@
 
         keyword = q.TryGetValue("keyword", out var kw) ? kw.ToString() : keyword;
         city = q.TryGetValue("city", out var c) ? c.ToString() : city;
-        classificationName = q.TryGetValue("genre", out var g) ? g.ToString() : classificationName;
 
         if (q.TryGetValue("when", out var w))
         {
@@ -323,7 +309,6 @@
         {
             radiusKm = 50;
             when = WhenFilter.All;
-            classificationName = "";
         }
 
         await Task.CompletedTask;
@@ -411,7 +396,6 @@
 
         if (!string.IsNullOrWhiteSpace(keyword)) p["keyword"] = keyword;
         if (!nearMe && !string.IsNullOrWhiteSpace(city)) p["city"] = city;
-        if (!string.IsNullOrWhiteSpace(classificationName)) p["genre"] = classificationName;
 
         if (when != WhenFilter.All)
         {
@@ -517,7 +501,6 @@
 
             Add("keyword", keyword);
             if (!nearMe) Add("city", city);
-            Add("classificationName", classificationName);
             Add("page", pageToLoad.ToString());
             Add("size", size.ToString());
 
