@@ -96,24 +96,6 @@ else
                             <div class="nc-muted">@evt.Address</div>
                         </div>
 
-                        <div class="mb-4">
-                            <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Prezzi</div>
-                            @if (evt.Prices.Count == 0)
-                            {
-                                <div class="nc-muted">Non disponibili</div>
-                            }
-                            else
-                            {
-                                @foreach (var p in evt.Prices)
-                                {
-                                    <div class="d-flex justify-content-between nc-muted">
-                                        <span>@(p.Currency ?? "")</span>
-                                        <span>@FormatRange(p.Min, p.Max)</span>
-                                    </div>
-                                }
-                            }
-                        </div>
-
                         <div class="d-grid gap-2">
                             @if (!string.IsNullOrWhiteSpace(evt.Url))
                             {
@@ -263,15 +245,6 @@ else
         }
 
         return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
-    }
-
-    private static string FormatRange(decimal? min, decimal? max)
-    {
-        if (min is null && max is null) return "—";
-        if (min is null) return $"fino a {max:0.##}";
-        if (max is null) return $"da {min:0.##}";
-        if (min == max) return $"{min:0.##}";
-        return $"{min:0.##} - {max:0.##}";
     }
 
     private static string FormatVenueLine(string? venue, string? address, string? city)
