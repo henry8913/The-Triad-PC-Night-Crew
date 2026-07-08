@@ -125,6 +125,8 @@
 
     private async Task Send()
     {
+        if (isSending) return;
+
         var text = draft.Trim();
         if (text.Length == 0)
         {
