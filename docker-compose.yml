@@ -3,8 +3,9 @@ services:
     build:
       context: ./The Triad PC
       dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
+    container_name: thetriadpc
+    expose:
+      - "5000"
     env_file:
       - .env
     environment:
@@ -12,13 +13,24 @@ services:
     depends_on:
       - gabo-ai
     restart: unless-stopped
+    networks:
+      - npm_default
+      - default
 
   gabo-ai:
     build:
       context: ./Gabo AI
       dockerfile: Dockerfile
+    container_name: triadpc-gabo-ai
     expose:
       - "8080"
     env_file:
       - .env
     restart: unless-stopped
+    networks:
+      - npm_default
+      - default
+
+networks:
+  npm_default:
+    external: true
