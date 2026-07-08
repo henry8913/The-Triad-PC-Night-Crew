@@ -1,5 +1,8 @@
 # Crea un file .env (non committarlo) partendo da questo template.
 # NON inserire segreti in repo: qui solo placeholder.
+#
+# In Docker (con docker-compose.yml) il file .env viene letto automaticamente
+# e CHAT_API_URL viene sovrascritto con http://gabo-ai:8080/chat per il networking tra container.
 
 # --- Gabo AI (Python) -> OpenRouter ---
 OPENROUTER_API_KEY=__INSERISCI_LA_TUA_API_KEY__

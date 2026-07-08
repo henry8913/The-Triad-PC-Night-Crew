@@ -1,0 +1,24 @@
+services:
+  blazor:
+    build:
+      context: ./The Triad PC
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - CHAT_API_URL=http://gabo-ai:8080/chat
+    depends_on:
+      - gabo-ai
+    restart: unless-stopped
+
+  gabo-ai:
+    build:
+      context: ./Gabo AI
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
+    env_file:
+      - .env
+    restart: unless-stopped
