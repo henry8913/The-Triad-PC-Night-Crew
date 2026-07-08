@@ -1,5 +1,7 @@
 @page "/magazine/{Slug}"
 @using TheTriadPCNightCrew.Services
+@rendermode InteractiveServer
+@inject IJSRuntime JS
 
 <PageTitle>@article?.Title | Magazine</PageTitle>
 
@@ -56,7 +58,7 @@ else
                                 </div>
                             </div>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-outline-light btn-sm" style="border-color: rgba(255,255,255,0.18);">Condividi</button>
+                                <button class="btn btn-outline-light btn-sm" style="border-color: rgba(255,255,255,0.18);" @onclick="ShareArticle">Condividi</button>
                                 <a class="btn nc-btn btn-sm" href="magazine">Torna agli articoli</a>
                             </div>
                         </div>
@@ -77,4 +79,13 @@ else
     {
         article = ArticleStore.GetBySlug(Slug);
     }
+
+    private async Task ShareArticle()
+    {
+        if (article is null) return;
+        var url = $"{NavigationManager.BaseUri.TrimEnd('/')}/magazine/{Uri.EscapeDataString(Slug)}";
+        await JS.InvokeVoidAsync("ncShare.share", new { title = article.Title, text = article.Excerpt, url });
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
 }

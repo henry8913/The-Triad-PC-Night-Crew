@@ -1,4 +1,5 @@
 @page "/venues"
+@rendermode InteractiveServer
 
 <PageTitle>Per i Locali</PageTitle>
 
@@ -63,20 +64,20 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label nc-muted mb-1">Nome Locale / Organizzazione</label>
-                    <input class="form-control nc-input" placeholder="Es. The Warehouse" />
+                    <input class="form-control nc-input" @bind="partnerName" @bind:event="oninput" placeholder="Es. The Warehouse" />
                 </div>
                 <div class="col-md-6">
                     <label class="form-label nc-muted mb-1">Città</label>
-                    <input class="form-control nc-input" placeholder="Es. Piacenza" />
+                    <input class="form-control nc-input" @bind="partnerCity" @bind:event="oninput" placeholder="Es. Piacenza" />
                 </div>
                 <div class="col-md-6">
                     <label class="form-label nc-muted mb-1">Email Referente</label>
-                    <input type="email" class="form-control nc-input" placeholder="hello@locale.it" />
+                    <input type="email" class="form-control nc-input" @bind="partnerEmail" @bind:event="oninput" placeholder="hello@locale.it" />
                 </div>
                 <div class="col-md-6">
                     <label class="form-label nc-muted mb-1">Vibe Principale</label>
-                    <select class="form-select nc-select">
-                        <option selected>Scegli...</option>
+                    <select class="form-select nc-select" @bind="partnerVibe">
+                        <option value="">Scegli...</option>
                         <option>Club / Discoteca</option>
                         <option>Live Music / Concerti</option>
                         <option>Cocktail Bar / Lounge</option>
@@ -85,10 +86,16 @@
                 </div>
                 <div class="col-12">
                     <label class="form-label nc-muted mb-1">Link Instagram o Sito</label>
-                    <input class="form-control nc-input" placeholder="https://instagram.com/..." />
+                    <input class="form-control nc-input" @bind="partnerLink" @bind:event="oninput" placeholder="https://instagram.com/..." />
                 </div>
                 <div class="col-12 mt-4">
-                    <button class="btn nc-btn w-100 btn-lg">Invia Richiesta</button>
+                    <button class="btn nc-btn w-100 btn-lg" @onclick="SubmitPartnerRequest" disabled="@partnerSubmitted">
+                        @(partnerSubmitted ? "Richiesta Inviata!" : "Invia Richiesta")
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(partnerMessage))
+                    {
+                        <div class="nc-muted mt-2 text-center">@partnerMessage</div>
+                    }
                 </div>
             </div>
         </div>
@@ -96,5 +103,26 @@
 </section>
 
 @code {
+    private string partnerName = "";
+    private string partnerCity = "";
+    private string partnerEmail = "";
+    private string partnerVibe = "";
+    private string partnerLink = "";
+    private bool partnerSubmitted;
+    private string? partnerMessage;
 
+    private async Task SubmitPartnerRequest()
+    {
+        if (partnerSubmitted) return;
+        if (string.IsNullOrWhiteSpace(partnerName) || string.IsNullOrWhiteSpace(partnerEmail) || !partnerEmail.Contains('@'))
+        {
+            partnerMessage = "Compila almeno nome e email valida.";
+            return;
+        }
+
+        partnerSubmitted = true;
+        partnerMessage = null;
+        await Task.Delay(300);
+        partnerMessage = "Grazie! Ti contatteremo entro 48 ore.";
+    }
 }

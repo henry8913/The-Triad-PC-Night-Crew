@@ -157,7 +157,7 @@
                                             <div class="fw-semibold fs-5 nc-article-title mb-1" style="color: var(--nc-text);">@item.Name</div>
                                             <div class="nc-muted mb-3 flex-grow-1">@item.Venue</div>
                                             <div class="d-flex justify-content-between align-items-center mt-auto">
-                                                <span class="nc-muted">@FormatDateTime(item.LocalDate, item.LocalTime)</span>
+                                                <span class="nc-muted">@EventFilterHelper.FormatDateTime(item.LocalDate, item.LocalTime)</span>
                                                 <span class="nc-chip" style="color: var(--nc-accent); border-color: rgba(255,77,0,0.3);">Apri</span>
                                             </div>
                                         </div>
@@ -239,9 +239,15 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="d-flex gap-2">
-                        <input class="form-control nc-input" placeholder="Email" />
-                        <button class="btn nc-btn">Iscriviti</button>
+                        <input class="form-control nc-input" @bind="newsletterEmail" @bind:event="oninput" placeholder="Email" />
+                        <button class="btn nc-btn" @onclick="SubscribeNewsletter" disabled="@isSubscribing">
+                            @(isSubscribing ? "…" : (newsletterSubscribed ? "Iscritto!" : "Iscriviti"))
+                        </button>
                     </div>
+                    @if (!string.IsNullOrWhiteSpace(newsletterMessage))
+                    {
+                        <div class="nc-muted mt-2">@newsletterMessage</div>
+                    }
                 </div>
             </div>
         </div>
@@ -289,6 +295,34 @@
     private string? geoError;
 
     private bool HasCoords => lat is not null && lng is not null;
+
+    private string newsletterEmail = "";
+    private bool isSubscribing;
+    private bool newsletterSubscribed;
+    private string? newsletterMessage;
+
+    private async Task SubscribeNewsletter()
+    {
+        if (isSubscribing || newsletterSubscribed) return;
+        if (string.IsNullOrWhiteSpace(newsletterEmail) || !newsletterEmail.Contains('@'))
+        {
+            newsletterMessage = "Inserisci un'email valida.";
+            return;
+        }
+
+        isSubscribing = true;
+        newsletterMessage = null;
+        try
+        {
+            await Task.Delay(300);
+            newsletterSubscribed = true;
+            newsletterMessage = "Grazie per l'iscrizione! Riceverai la Night Drop ogni settimana.";
+        }
+        finally
+        {
+            isSubscribing = false;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -364,7 +398,7 @@
 
         try
         {
-            var (startUtc, endUtc) = BuildDateRangeUtc();
+            var (startUtc, endUtc) = EventFilterHelper.BuildDateRangeUtc(when);
             var latlong = (nearMe && HasCoords)
                 ? $"{lat!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)},{lng!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}"
                 : null;
@@ -413,8 +447,8 @@
             }
             else
             {
-                var problem = TryParseProblemDetails(content);
-                feedError = BuildUserFriendlyError(problem, response.StatusCode);
+                var problem = EventFilterHelper.TryParseProblemDetails(content);
+                feedError = EventFilterHelper.BuildUserFriendlyError(problem, response.StatusCode);
                 feedResult = null;
             }
         }
@@ -430,48 +464,6 @@
         }
     }
 
-    private (DateTimeOffset? StartUtc, DateTimeOffset? EndUtc) BuildDateRangeUtc()
-    {
-        var today = DateTime.Today;
-        var offset = TimeZoneInfo.Local.GetUtcOffset(today);
-
-        DateTime startLocal;
-        DateTime endLocal;
-
-        switch (when)
-        {
-            case WhenFilter.Today:
-                startLocal = today;
-                endLocal = today.AddDays(1).AddTicks(-1);
-                break;
-
-            case WhenFilter.ThisWeek:
-                startLocal = today;
-                endLocal = today.AddDays(7).AddTicks(-1);
-                break;
-
-            case WhenFilter.Weekend:
-                if (today.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    startLocal = today.AddDays(-1);
-                }
-                else
-                {
-                    var daysUntilSat = ((int)DayOfWeek.Saturday - (int)today.DayOfWeek + 7) % 7;
-                    startLocal = today.AddDays(daysUntilSat);
-                }
-                endLocal = startLocal.AddDays(2).AddTicks(-1);
-                break;
-
-            default:
-                return (null, null);
-        }
-
-        var start = new DateTimeOffset(startLocal, offset).ToUniversalTime();
-        var end = new DateTimeOffset(endLocal, offset).ToUniversalTime();
-        return (start, end);
-    }
-
     private async Task GoToEvents()
     {
         if (nearMe && !HasCoords)
@@ -479,50 +471,6 @@
             await GetLocation();
         }
         await LoadFeed();
-    }
-
-    private static string FormatDateTime(string? localDate, string? localTime)
-    {
-        if (string.IsNullOrWhiteSpace(localDate))
-        {
-            return "Data da confermare";
-        }
-
-        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
-    }
-
-    private static Microsoft.AspNetCore.Mvc.ProblemDetails? TryParseProblemDetails(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        try
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ProblemDetails>(json, JsonOptions);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string BuildUserFriendlyError(Microsoft.AspNetCore.Mvc.ProblemDetails? problem, System.Net.HttpStatusCode statusCode)
-    {
-        // Priorità: detail -> title -> fallback con status.
-        if (!string.IsNullOrWhiteSpace(problem?.Detail))
-        {
-            return problem!.Detail!;
-        }
-
-        if (!string.IsNullOrWhiteSpace(problem?.Title))
-        {
-            return problem!.Title!;
-        }
-
-        var status = problem?.Status ?? (int)statusCode;
-        return $"Errore nel caricamento del feed ({status}). Riprova tra poco.";
     }
 
     private static readonly Review[] Reviews =
@@ -535,12 +483,4 @@
     private sealed record Review(string Quote, string Detail, string Author, string Tag);
 
     private sealed record GeoPosition(double Latitude, double Longitude, double? Accuracy);
-
-    private enum WhenFilter
-    {
-        Today,
-        Weekend,
-        ThisWeek,
-        All
-    }
 }

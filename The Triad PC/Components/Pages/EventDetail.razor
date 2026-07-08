@@ -1,4 +1,5 @@
-@page "/events/{slug}"
+@page "/events/{Slug}"
+@page "/events/tm/{Id}"
 @using TheTriadPCNightCrew.Services
 @rendermode InteractiveServer
 @inject IJSRuntime JS
@@ -28,7 +29,7 @@ else if (evt is null)
     <section class="py-5 text-center">
         <div class="container">
             <h1 class="display-4 fw-semibold mb-3">Evento non trovato</h1>
-            <p class="nc-muted mb-4">Lo slug non è valido o l'evento non è più disponibile.</p>
+            <p class="nc-muted mb-4">Il riferimento non è valido o l'evento non è più disponibile.</p>
             <a class="btn nc-btn" href="/events">Cerca altri eventi</a>
         </div>
     </section>
@@ -70,8 +71,8 @@ else
                         {
                             <div class="nc-muted" style="line-height: 1.7;">
                                 <div class="fw-semibold" style="color: var(--nc-text);">Dettagli rapidi</div>
-                                <div>Quando: @FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
-                                <div>Dove: @FormatVenueLine(evt.Venue, evt.Address, evt.City)</div>
+                                <div>Quando: @EventFilterHelper.FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
+                                <div>Dove: @EventFilterHelper.FormatVenueLine(evt.Venue, evt.Address, evt.City)</div>
                                 @if (!string.IsNullOrWhiteSpace(evt.Url))
                                 {
                                     <div>
@@ -87,7 +88,7 @@ else
                     <div class="nc-card p-4 sticky-top" style="top: 6rem;">
                         <div class="mb-4">
                             <div class="nc-muted fs-6 mb-1 text-uppercase fw-semibold" style="letter-spacing: 0.1em;">Quando</div>
-                            <div class="fs-5 fw-semibold">@FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
+                            <div class="fs-5 fw-semibold">@EventFilterHelper.FormatDateTime(evt.LocalDate, evt.LocalTime)</div>
                         </div>
                         
                         <div class="mb-4">
@@ -126,6 +127,9 @@ else
     [Parameter]
     public string Slug { get; set; } = "";
 
+    [Parameter]
+    public string Id { get; set; } = "";
+
     [Inject] private IHttpClientFactory HttpClientFactory { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private FavoritesStore Favorites { get; set; } = default!;
@@ -154,13 +158,14 @@ else
 
         try
         {
-            if (!TicketmasterSlug.TryExtractId(Slug, out var id))
+            var eventId = ResolveId();
+            if (string.IsNullOrWhiteSpace(eventId))
             {
                 evt = null;
                 return;
             }
 
-            evt = await http.GetFromJsonAsync<TicketmasterApi.TicketmasterEventDetail>($"/api/ticketmaster/events/{Uri.EscapeDataString(id)}");
+            evt = await http.GetFromJsonAsync<TicketmasterApi.TicketmasterEventDetail>($"/api/ticketmaster/events/{Uri.EscapeDataString(eventId)}");
         }
         catch (Exception ex)
         {
@@ -170,6 +175,21 @@ else
         {
             isLoading = false;
         }
+    }
+
+    private string? ResolveId()
+    {
+        if (!string.IsNullOrWhiteSpace(Id))
+        {
+            return Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Slug) && TicketmasterSlug.TryExtractId(Slug, out var extractedId))
+        {
+            return extractedId;
+        }
+
+        return null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -242,29 +262,5 @@ else
         {
             isBusy = false;
         }
-    }
-
-    private static string FormatDateTime(string? localDate, string? localTime)
-    {
-        if (string.IsNullOrWhiteSpace(localDate))
-        {
-            return "Data da confermare";
-        }
-
-        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
-    }
-
-    private static string FormatVenueLine(string? venue, string? address, string? city)
-    {
-        var v = (venue ?? "").Trim();
-        var a = (address ?? "").Trim();
-        var c = (city ?? "").Trim();
-
-        if (v.Length == 0 && a.Length == 0 && c.Length == 0) return "Da confermare";
-        if (a.Length == 0 && c.Length == 0) return v;
-        if (a.Length == 0) return v.Length == 0 ? c : $"{v} · {c}";
-        if (c.Length == 0) return v.Length == 0 ? a : $"{v} · {a}";
-        if (v.Length == 0) return $"{a} · {c}";
-        return $"{v} · {a} · {c}";
     }
 }

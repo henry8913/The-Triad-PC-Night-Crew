@@ -160,7 +160,7 @@
                                             <div class="fw-semibold fs-5 mb-1 nc-article-title" style="color: var(--nc-text);">@e.Name</div>
                                             <div class="nc-muted mb-3 flex-grow-1">@e.Venue</div>
                                             <div class="d-flex justify-content-between align-items-center mt-auto">
-                                                <span class="nc-muted">@FormatDateTime(e.LocalDate, e.LocalTime)</span>
+                                                <span class="nc-muted">@EventFilterHelper.FormatDateTime(e.LocalDate, e.LocalTime)</span>
                                                 <span class="nc-chip nc-chip-strong">Dettagli</span>
                                             </div>
                                         </div>
@@ -488,7 +488,7 @@
     {
         try
         {
-            var (startUtc, endUtc) = BuildDateRangeUtc();
+            var (startUtc, endUtc) = EventFilterHelper.BuildDateRangeUtc(when);
             var latlong = (nearMe && HasCoords) ? $"{lat!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)},{lng!.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}" : null;
             var radius = (nearMe && HasCoords) ? radiusKm : (int?)null;
 
@@ -519,8 +519,8 @@
 
             if (!response.IsSuccessStatusCode)
             {
-                var problem = TryParseProblemDetails(content);
-                throw new InvalidOperationException(BuildUserFriendlyError(problem, response.StatusCode));
+                var problem = EventFilterHelper.TryParseProblemDetails(content);
+                throw new InvalidOperationException(EventFilterHelper.BuildUserFriendlyError(problem, response.StatusCode));
             }
 
             var resp = System.Text.Json.JsonSerializer.Deserialize<TicketmasterApi.PagedResult<TicketmasterApi.TicketmasterEventListItem>>(content, JsonOptions);
@@ -544,56 +544,5 @@
         }
     }
 
-    private static string FormatDateTime(string? localDate, string? localTime)
-    {
-        if (string.IsNullOrWhiteSpace(localDate))
-        {
-            return "Data da confermare";
-        }
-
-        return string.IsNullOrWhiteSpace(localTime) ? localDate : $"{localDate} · {localTime}";
-    }
-
     private sealed record GeoPosition(double Latitude, double Longitude, double? Accuracy);
-
-    private static Microsoft.AspNetCore.Mvc.ProblemDetails? TryParseProblemDetails(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        try
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<Microsoft.AspNetCore.Mvc.ProblemDetails>(json, JsonOptions);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string BuildUserFriendlyError(Microsoft.AspNetCore.Mvc.ProblemDetails? problem, System.Net.HttpStatusCode statusCode)
-    {
-        if (!string.IsNullOrWhiteSpace(problem?.Detail))
-        {
-            return problem!.Detail!;
-        }
-
-        if (!string.IsNullOrWhiteSpace(problem?.Title))
-        {
-            return problem!.Title!;
-        }
-
-        var status = problem?.Status ?? (int)statusCode;
-        return $"Errore nel caricamento degli eventi ({status}). Riprova tra poco.";
-    }
-
-    private enum WhenFilter
-    {
-        Today,
-        Weekend,
-        ThisWeek,
-        All
-    }
 }
