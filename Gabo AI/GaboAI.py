@@ -465,8 +465,8 @@ def _openrouter_chat(messages: List[Dict[str, str]], cfg: Dict[str, str], timeou
     payload = {
         "model": model,
         "messages": messages,
-        "temperature": 0.6,
-        "max_tokens": 220,
+        "temperature": 0.7,
+        "max_tokens": 400,
     }
     raw = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=raw, method="POST")
@@ -501,12 +501,15 @@ def _openrouter_chat(messages: List[Dict[str, str]], cfg: Dict[str, str], timeou
     raise RuntimeError("Risposta OpenRouter vuota")
 
 
-SYSTEM_PROMPT = """Sei Gabo AI, buttafuori digitale e coach della serata per Night Crew.
-Tono: breve, diretto, zero sbatti. Italiano naturale da notte.
+SYSTEM_PROMPT = """Sei Gabo AI, buttafuori digitale e coach della serata per Night Crew — il portale per eventi e vita notturna.
+Tono: diretto, spiritoso, mai robotico. Italiano naturale, da serata tra amici.
 Regole:
-- Non inventare eventi, nomi di locali o link. Se l'utente chiede eventi, sarà un altro modulo a fornirli.
-- Se mancano info, fai al massimo 1 domanda secca.
-- Rispondi in 1-2 frasi, massimo 3 se serve. Niente liste lunghe."""
+- Se l'utente chiede eventi, locali o vita notturna, raccogli città e quando e lascia fare al sistema eventi.
+- Non inventare mai eventi, nomi di locali, orari o link. Se non hai dati veri, scherza e passa oltre.
+- Se l'utente parla di altro (musica, consigli su serate, aneddoti, curiosità), rispondi in modo naturale e coinvolgente, come un amico che ne sa.
+- Puoi fare domande per capire meglio i gusti musicali o le preferenze serali dell'utente.
+- Se non capisci cosa vuole, chiedi chiaramente senza supporre.
+- Risposte tra 1 e 5 frasi, non scrivere liste numerate."""
 
 
 def coach_reply(messages: List[Dict[str, Any]], cfg: Dict[str, str]) -> Dict[str, Any]:
@@ -526,12 +529,19 @@ def coach_reply(messages: List[Dict[str, Any]], cfg: Dict[str, str]) -> Dict[str
         if len(text) > 650:
             text = text[:650].rstrip() + "…"
         return {"reply": text, "events": []}
-    except Exception:
+    except Exception as ex:
         last_user = _collect_last_user_text(messages)
-        fallback = "Dimmi città + quando (stasera/weekend) e ti sparo 3 idee vere."
-        if any(w in _normalize_spaces(last_user).lower() for w in ["piove", "freddo", "caldo", "macchina", "ragazza", "tranquillo"]):
-            fallback = "Ok. Dimmi solo città + quando e ti trovo 3 opzioni easy (zero sbatti)."
-        return {"reply": fallback, "events": []}
+        reply_map = {
+            "piove": "Brutto tempo? Night Crew funziona lo stesso. Ci sono locali al coperto pieni di vibe. Dimmi dove.",
+            "freddo": "Fa freddo ma la notte è calda. Dimmi città e ti trovo posti al chiuso con musica.",
+            "caldo": "Estate, notti lunghe. Perfetto. Dove vuoi uscire?",
+            "macchina": "Hai la macchina? Allora nessun limite. Arrivi ovunque. Dimmi quanto vuoi spingerti lontano.",
+            "tranquillo": "Serata easy, ci sta. Zona e ti suggerisco qualcosa di rilassato.",
+        }
+        for kw, reply in reply_map.items():
+            if kw in _normalize_spaces(last_user).lower():
+                return {"reply": reply, "events": []}
+        return {"reply": "Scusa, ora ho un attimo di caos. Ridimmi cosa cerchi — città, quando, vibe. Ti sistemo io.", "events": []}
 
 
 def greeting_reply(path: str) -> Dict[str, Any]:
